@@ -89,6 +89,21 @@ async function handleConnectLink() {
   }
 }
 
+/** アプリ起動中に接続リンクを開かれた場合（hash だけが変わるので、起動時の処理は走らない） */
+function watchConnectLinks() {
+  window.addEventListener('hashchange', async () => {
+    const link = await handleConnectLink();
+    if (!link.used) return;
+    if (link.ok) {
+      location.reload();
+      return;
+    }
+    const err = document.querySelector('.welcome-err');
+    if (err) err.textContent = link.error;
+    else toast(link.error, { kind: 'error' });
+  });
+}
+
 async function start() {
   if (native.available) document.documentElement.dataset.native = '1';
   // ネイティブ（通知タップなど）から画面遷移させるための入口
@@ -111,6 +126,7 @@ async function start() {
   initStore(); // 設定を先に読み込む（タイマーがネイティブへ同期するときに通知設定を参照する）
   timer.init();
   defineRoutes();
+  watchConnectLinks();
   const link = await handleConnectLink();
 
   const boot = () => {
