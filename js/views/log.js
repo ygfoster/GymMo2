@@ -8,19 +8,18 @@ import { createDock } from '../ui/dock.js';
 import { openMenu, showHud, toast, confirmDialog } from '../ui/overlay.js';
 import { openDatePicker } from '../ui/datepicker.js';
 import { openExerciseSheet } from './exercise.js';
-import { state, on, getIndex, partColor, refreshHealth, saveDay, loadDraft, saveDraft, clearDraft, PART_ORDER } from '../store.js';
+import { state, on, getIndex, partColor, refreshHealth, saveDay, loadDraft, saveDraft, clearDraft, allParts } from '../store.js';
 import { router } from '../router.js';
 import { timer, presetFor } from '../timer.js';
 import { haptic } from '../lib/haptics.js';
 import { chime } from '../lib/sound.js';
 import { unlockAudio } from '../lib/sound.js';
 import { todayKey, addDays, diffDays, formatShort, formatWeekdayLong, formatMD, fromKey } from '../lib/dates.js';
-import { PARTS, normPart, toNumberOrNull, formatSleep } from '../lib/parse.js';
+import { normPart, partCategory, getKnownParts, OTHER_PART, toNumberOrNull } from '../lib/parse.js';
 import { suggestExercises, previousSession, bestBefore, est1RM, healthView, exerciseStats } from '../lib/metrics.js';
 import { fmtInt, fmtSigned, fmtNum, fmtClock } from '../lib/format.js';
 import { setPill } from './common.js';
 
-const PART_CHIPS = [...PARTS, 'その他'];
 const MIN_SETS = 3;
 let uidSeq = 0;
 
@@ -48,6 +47,7 @@ export function createLogView({ date: dateParam }) {
       </div>
       <div class="sheet-body log-body"></div>
       <div class="log-dock"></div>
+      <div class="log-scrim" aria-hidden="true"></div>
     </div>`);
   const body = root.querySelector('.log-body');
   const dateBtn = root.querySelector('.log-date');
@@ -88,8 +88,14 @@ export function createLogView({ date: dateParam }) {
     if (draft) {
       draftActive = true;
       const p = normPart(draft.part);
-      form.part = p;
-      form.partCustom = draft.partCustom || '';
+      // 下書きの部位が削除・改名されていたら「その他」＋その名前として復元する
+      if (!p || p === OTHER_PART || getKnownParts().includes(p)) {
+        form.part = p;
+        form.partCustom = draft.partCustom || '';
+      } else {
+        form.part = OTHER_PART;
+        form.partCustom = p;
+      }
       form.exercises = (draft.exercises || []).map((e) => ({
         uid: ++uidSeq,
         name: e.name || '',
@@ -100,9 +106,9 @@ export function createLogView({ date: dateParam }) {
       const day = state.training[date];
       if (day?.exercises.length) {
         const p = normPart(day.part);
-        if (PARTS.includes(p)) form.part = p;
+        if (getKnownParts().includes(p)) form.part = p;
         else if (p) {
-          form.part = 'その他';
+          form.part = OTHER_PART;
           form.partCustom = p;
         }
         form.exercises = day.exercises.map((e) => ({
@@ -138,7 +144,7 @@ export function createLogView({ date: dateParam }) {
     let last = null;
     for (const [d, day] of Object.entries(state.training)) {
       if (d >= date) continue;
-      if (!day.exercises.some((e) => (PARTS.includes(normPart(e.part || day.part)) ? normPart(e.part || day.part) : 'その他') === part)) continue;
+      if (!day.exercises.some((e) => partCategory(e.part || day.part) === part)) continue;
       if (!last || d > last) last = d;
     }
     return last ? diffDays(date, last) : null;
@@ -157,7 +163,7 @@ export function createLogView({ date: dateParam }) {
 
   const partChipsHtml = () => html`
     <div class="part-picker">
-      <div class="chip-row" role="group" aria-label="トレーニング部位">${PART_CHIPS.map((p) => {
+      <div class="chip-row" role="group" aria-label="トレーニング部位">${allParts().map((p) => {
         const since = p === 'その他' ? null : daysSince(p);
         const sub = since == null ? (p === 'その他' ? '' : '—') : since === 0 ? '同日' : `${since}日前`;
         return html`<button class="chip chip-2l" data-part="${p}" aria-pressed="${form.part === p}">
@@ -169,13 +175,16 @@ export function createLogView({ date: dateParam }) {
 
   const setRowHtml = (ex, s, i) => {
     const visible = i === 0 || i < MIN_SETS || hasData(ex.sets[i - 1]) || hasData(s) || s.done;
-    return html`<div class="set ${s.done ? 'is-done' : ''}" data-i="${i}" ${visible ? '' : 'hidden'}>
-      <span class="set-n">${i + 1}</span>
-      <label class="num-in"><input class="in-w" inputmode="decimal" autocomplete="off" placeholder="0" value="${s.w}" aria-label="${i + 1}セット目の重量" /><span class="u">kg</span></label>
-      <span class="times">×</span>
-      <label class="num-in"><input class="in-r" inputmode="numeric" autocomplete="off" placeholder="0" value="${s.r}" aria-label="${i + 1}セット目の回数" enterkeyhint="done" /><span class="u">回</span></label>
-      <button class="set-check" data-act="done" aria-pressed="${s.done}" aria-label="セット完了">${icons.check}</button>
-      <span class="set-pr" data-role="pr" hidden><span class="pr pop">${icons.star}PR</span></span>
+    return html`<div class="set-swipe" ${visible ? '' : 'hidden'}>
+      <button class="set-del" data-act="delset" tabindex="-1" aria-label="${i + 1}セット目を削除">${icons.trash}<span>削除</span></button>
+      <div class="set ${s.done ? 'is-done' : ''}" data-i="${i}">
+        <span class="set-n">${i + 1}</span>
+        <label class="num-in"><input class="in-w" inputmode="decimal" autocomplete="off" placeholder="0" value="${s.w}" aria-label="${i + 1}セット目の重量" /><span class="u">kg</span></label>
+        <span class="times">×</span>
+        <label class="num-in"><input class="in-r" inputmode="numeric" autocomplete="off" placeholder="0" value="${s.r}" aria-label="${i + 1}セット目の回数" enterkeyhint="done" /><span class="u">回</span></label>
+        <button class="set-check" data-act="done" aria-pressed="${s.done}" aria-label="セット完了">${icons.check}</button>
+        <span class="set-pr" data-role="pr" hidden><span class="pr pop">${icons.star}PR</span></span>
+      </div>
     </div>`;
   };
 
@@ -350,7 +359,7 @@ export function createLogView({ date: dateParam }) {
     card.querySelectorAll('.set').forEach((row, i) => {
       const s = ex.sets[i];
       const vis = i === 0 || i < MIN_SETS || hasData(ex.sets[i - 1]) || hasData(s) || s.done;
-      row.hidden = !vis;
+      row.parentElement.hidden = !vis;
     });
   }
 
@@ -360,12 +369,29 @@ export function createLogView({ date: dateParam }) {
     if (!list.length || document.activeElement !== card.querySelector('.xname')) {
       box.hidden = true;
       card.classList.remove('is-suggesting');
+      syncScrim();
       return;
     }
     box.innerHTML = String(html`${list.map((s) => html`<button class="sg" role="option" data-name="${s.name}"><i style="background:${partColor(s.part)}"></i><span class="sg-n">${s.name}</span><span class="sg-c">${s.count}回</span></button>`)}`);
     box.hidden = false;
     card.classList.add('is-suggesting');
+    syncScrim();
   }
+
+  /** 候補リストを出している間は、ほかの部分を暗くぼかして候補だけを見せる */
+  function syncScrim() {
+    root.classList.toggle('suggesting', !!body.querySelector('.xcard.is-suggesting'));
+  }
+  root.querySelector('.log-scrim').addEventListener('pointerdown', (e) => {
+    e.preventDefault(); // 下の要素へのタップの貫通を防ぐ
+    const input = body.querySelector('.xcard.is-suggesting .xname');
+    body.querySelectorAll('.xcard.is-suggesting').forEach((c) => {
+      c.classList.remove('is-suggesting');
+      c.querySelector('.suggest').hidden = true;
+    });
+    syncScrim();
+    input?.blur();
+  });
 
   body.addEventListener('input', onInput);
   body.addEventListener('focusin', (e) => {
@@ -391,6 +417,7 @@ export function createLogView({ date: dateParam }) {
       setTimeout(() => {
         card?.querySelector('.suggest')?.setAttribute('hidden', '');
         card?.classList.remove('is-suggesting');
+        syncScrim();
       }, 120);
     }
   });
@@ -433,7 +460,7 @@ export function createLogView({ date: dateParam }) {
     haptic.impact();
     if (state.settings.timer.autoStart) {
       timer.context({ logDate: date, part: partValue() || null });
-      timer.start({ seconds: presetFor(form.part === 'その他' ? 'その他' : form.part) });
+      timer.start({ seconds: presetFor(partValue()) });
     }
     refreshPR(ex.uid, { celebrate: true });
     refreshHints(ex.uid);
@@ -445,7 +472,7 @@ export function createLogView({ date: dateParam }) {
       } else {
         const next = card.querySelectorAll('.set')[i + 1];
         revealNextSet(card, ex);
-        next.hidden = false;
+        next.parentElement.hidden = false;
         next.querySelector('.in-w').focus();
       }
     }
@@ -480,6 +507,159 @@ export function createLogView({ date: dateParam }) {
     if (focusSet >= 0) fresh.querySelectorAll('.set')[focusSet]?.querySelector('.in-w')?.focus();
   }
 
+  /* ---------- セットの左スワイプで削除 ---------- */
+  // 少し引くと「削除」ボタンが出て止まり（タップで削除）、大きく引き切るとそのまま削除する（iOS のリストと同じ操作）
+  const REVEAL = 84;
+  let swipe = null;
+  let openRow = null;
+  let swipeEndAt = 0;
+  const swipeJustEnded = () => performance.now() - swipeEndAt < 350;
+
+  const settleRow = (row, x) => {
+    const wrap = row.parentElement;
+    row.classList.remove('dragging');
+    wrap.classList.remove('dragging', 'full');
+    row.style.transform = x ? `translateX(${x}px)` : '';
+    const del = wrap.querySelector('.set-del');
+    del.style.width = '';
+    if (x) {
+      wrap.classList.add('revealing');
+      openRow = row;
+    } else {
+      if (openRow === row) openRow = null;
+      // 閉じるアニメーションが終わってから赤い下地を消す
+      setTimeout(() => {
+        if (openRow !== row && !row.classList.contains('dragging')) wrap.classList.remove('revealing');
+      }, 320);
+    }
+  };
+  const closeOpenRow = () => {
+    if (openRow) settleRow(openRow, 0);
+  };
+
+  body.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.target.closest('.set-del')) return;
+    const row = e.target.closest('.set');
+    if (openRow && openRow !== row) closeOpenRow();
+    if (!row) return;
+    swipe = { row, id: e.pointerId, x0: e.clientX, y0: e.clientY, base: row === openRow ? -REVEAL : 0, x: 0, active: false, full: false };
+  });
+  body.addEventListener('pointermove', (e) => {
+    if (!swipe || e.pointerId !== swipe.id) return;
+    const dx = e.clientX - swipe.x0;
+    const dy = e.clientY - swipe.y0;
+    const { row } = swipe;
+    const wrap = row.parentElement;
+    if (!swipe.active) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+        swipe = null; // 縦スクロール
+        return;
+      }
+      if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+      if (swipe.base === 0 && dx > 0) {
+        swipe = null; // 閉じた行の右スワイプは何もしない
+        return;
+      }
+      swipe.active = true;
+      try {
+        row.setPointerCapture(e.pointerId);
+      } catch {
+        /* 無視 */
+      }
+      row.classList.add('dragging');
+      wrap.classList.add('dragging', 'revealing');
+      if (document.activeElement && row.contains(document.activeElement)) document.activeElement.blur();
+    }
+    const width = row.offsetWidth;
+    let x = Math.min(0, swipe.base + dx);
+    if (-x > width) x = -width;
+    swipe.x = x;
+    row.style.transform = `translateX(${x}px)`;
+    wrap.querySelector('.set-del').style.width = `${Math.max(REVEAL, -x)}px`;
+    const full = -x > width * 0.55;
+    if (full !== swipe.full) {
+      swipe.full = full;
+      wrap.classList.toggle('full', full);
+      haptic.select();
+    }
+  });
+  const endSwipe = (e, cancelled) => {
+    if (!swipe || e.pointerId !== swipe.id) return;
+    const s0 = swipe;
+    swipe = null;
+    if (!s0.active) {
+      // 開いている行をタップしたら閉じる
+      if (s0.row === openRow && !cancelled) {
+        settleRow(s0.row, 0);
+        swipeEndAt = performance.now();
+      }
+      return;
+    }
+    swipeEndAt = performance.now();
+    const card = s0.row.closest('.xcard');
+    const i = Number(s0.row.dataset.i);
+    if (!cancelled && s0.full) {
+      s0.row.classList.remove('dragging');
+      s0.row.style.transform = `translateX(${-s0.row.offsetWidth}px)`;
+      openRow = null;
+      deleteSet(card, i);
+    } else if (!cancelled && -s0.x > REVEAL / 2) {
+      settleRow(s0.row, -REVEAL);
+    } else {
+      settleRow(s0.row, 0);
+    }
+  };
+  body.addEventListener('pointerup', (e) => endSwipe(e, false));
+  body.addEventListener('pointercancel', (e) => endSwipe(e, true));
+  // スワイプの直後に発生するクリック（入力欄のフォーカスなど）を打ち消す
+  body.addEventListener('click', (e) => {
+    if (swipeJustEnded() && e.target.closest('.set') && !e.target.closest('.set-del')) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+
+  function deleteSet(card, i) {
+    const ex = exOf(card?.dataset.uid);
+    if (!ex || !ex.sets[i]) return;
+    haptic.warning();
+    const removed = ex.sets[i];
+    const wrap = card.querySelectorAll('.set')[i]?.parentElement;
+    const commit = () => {
+      ex.sets.splice(i, 1);
+      ex.sets = padSets(ex.sets);
+      replaceCard(ex.uid);
+      scheduleDraft();
+      if (hasData(removed)) {
+        toast(`${i + 1}セット目を削除しました`, {
+          duration: 6000,
+          action: {
+            label: '取り消す',
+            onSelect: () => {
+              const cur = exOf(ex.uid);
+              if (!cur) return;
+              // 末尾の空セット（自動で補ったもの）を 1 つ詰めてから元の位置に戻す
+              const last = cur.sets[cur.sets.length - 1];
+              if (cur.sets.length > MIN_SETS - 1 && last && !hasData(last) && !last.done) cur.sets.pop();
+              cur.sets.splice(Math.min(i, cur.sets.length), 0, removed);
+              cur.sets = padSets(cur.sets);
+              replaceCard(cur.uid);
+              scheduleDraft();
+            },
+          },
+        });
+      }
+    };
+    if (!wrap) return commit();
+    wrap.style.height = `${wrap.offsetHeight}px`;
+    void wrap.offsetHeight;
+    wrap.classList.add('removing');
+    wrap.style.height = '0px';
+    wrap.style.marginTop = '-9px';
+    setTimeout(commit, 260);
+  }
+
   /* ---------- クリック ---------- */
   body.addEventListener('pointerdown', (e) => {
     const sg = e.target.closest('.sg');
@@ -491,6 +671,7 @@ export function createLogView({ date: dateParam }) {
     card.querySelector('.xname').value = ex.name;
     card.querySelector('.suggest').hidden = true;
     card.classList.remove('is-suggesting');
+    syncScrim();
     haptic.select();
     refreshPrev(ex.uid);
     refreshPR(ex.uid);
@@ -536,7 +717,10 @@ export function createLogView({ date: dateParam }) {
       replaceCard(ex.uid, { focusSet: ex.sets.length - 1 });
       scheduleDraft();
     } else if (act === 'done') {
+      if (swipeJustEnded()) return;
       toggleSet(card, Number(btn.closest('.set').dataset.i));
+    } else if (act === 'delset') {
+      deleteSet(card, Number(btn.parentElement.querySelector('.set').dataset.i));
     } else if (act === 'copyprev') {
       const ex = exOf(card.dataset.uid);
       const prev = previousSession(getIndex(), ex.name, date);

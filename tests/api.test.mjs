@@ -74,3 +74,21 @@ test('cleanDay: 空の種目と空のセットを落とし、id と部位を整�
   assert.equal(day.exercises[1].name, '種目不明');
   assert.equal(day.exercises[1].id, '2026-10-22#1');
 });
+
+test('demo: renameValues で部位名を一括変更できる（足は脚と一緒に）', async () => {
+  const api = createDemoApi();
+  api.reset();
+  const fresh = createDemoApi();
+  await fresh.saveDay('2026-01-03', [{ date: '2026/01/03', part: '足', exercise: 'スクワット', details: '1セット目: 60kg × 5回', memo: '' }]);
+  const res = await fresh.renameValues('part', ['脚', '足'], '大腿');
+  assert.ok(res.count >= 2);
+  const t = rowsToTraining((await fresh.bootstrap()).training);
+  assert.equal(t['2026-01-03'].part, '大腿');
+  assert.ok(!Object.values(t).some((d) => d.part === '脚' || d.part === '足'));
+  fresh.reset();
+});
+
+test('cleanDay: 種目名の末尾「ロー」を「ロウ」にそろえる', () => {
+  const day = cleanDay({ date: '2026-10-22', part: '背中', exercises: [{ name: 'プーリーロー', memo: '', sets: [{ w: 40, r: 10 }] }] });
+  assert.equal(day.exercises[0].name, 'プーリーロウ');
+});

@@ -91,8 +91,19 @@ def dump(path):
     return 0
 
 
+def rename_noop():
+    """存在しない部位名の改名（書き換え 0 件）で renameValues の配線と検証だけを確かめる。シートは変わらない。"""
+    res = call('renameValues', field='part', **{'from': ['__gymmo2_check_nonexistent__']}, to='__never__')
+    show('renameValues(0件のはず)', res)
+    bad = call('renameValues', field='date', **{'from': ['x']}, to='y')
+    show('renameValues(不正な項目は拒否)', bad)
+    return 0 if res.get('ok') and res.get('count') == 0 and not bad.get('ok') else 1
+
+
 if __name__ == '__main__':
     cmd = sys.argv[1] if len(sys.argv) > 1 else 'read'
     if cmd == 'dump':
         sys.exit(dump(sys.argv[2]))
+    if cmd == 'rename-noop':
+        sys.exit(rename_noop())
     sys.exit(read() if cmd == 'read' else roundtrip())

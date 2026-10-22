@@ -11,6 +11,10 @@
  *   health   { date: 'YYYY-MM-DD' }         → その日のヘルスデータを Google ヘルス API から取得してシートに転記し、1 行返す
  *   saveDay  { date, rows: [...] }          → その日のワークアウト行を置き換え
  *   deleteDay{ date }                       → その日のワークアウト行を削除
+ *   renameValues { field: 'part'|'exercise', from: [...], to }
+ *                                           → ワークアウト全行の部位名（または種目名）を一括で書き換え（部位の改名用）
+ *
+ * bootstrap のたびに、種目名の末尾「ロー」を「ロウ」に統一する（シートを直接編集した場合も自動でそろう）。
  */
 
 var SHEET_HEALTH = 'Health Data';
@@ -47,6 +51,8 @@ function doPost(e) {
         return json_(withLock_(function () { return handleSaveDay_(body.date, body.rows); }));
       case 'deleteDay':
         return json_(withLock_(function () { return handleDeleteDay_(body.date); }));
+      case 'renameValues':
+        return json_(withLock_(function () { return handleRename_(body.field, body.from, body.to); }));
       default:
         return json_({ ok: false, error: '不明な操作です' });
     }
@@ -151,6 +157,11 @@ function upsertHealthRow_(ss, slashKey, rec) {
 /* ---------- ハンドラ ---------- */
 function handleBootstrap_() {
   var ss = spreadsheet_();
+  try {
+    normalizeExerciseColumn_(ss);
+  } catch (err) {
+    console.warn('種目名の統一に失敗しました', err); // 読み込み自体は止めない
+  }
   return { ok: true, training: readTraining_(ss), health: readHealth_(ss), serverTime: Date.now() };
 }
 
@@ -201,6 +212,46 @@ function handleSaveDay_(dateIso, rows) {
     }));
   }
   return { ok: true, count: clean.length };
+}
+
+function handleRename_(field, from, to) {
+  var req = sanitizeRenameRequest_(field, from, to);
+  var sheet = trainingSheet_(spreadsheet_());
+  var changed = rewriteColumn_(sheet, req.column, function (v) {
+    return req.from.indexOf(v.trim()) !== -1 ? req.to : null;
+  });
+  return { ok: true, count: changed };
+}
+
+/** 種目名の末尾「ロー」→「ロウ」。書き換えた行がある場合だけロックを取って書き込む。 */
+function normalizeExerciseColumn_(ss) {
+  var sheet = trainingSheet_(ss);
+  var mapFn = function (v) {
+    return TRAILING_RO_.test(v.trim()) ? normalizeExerciseName_(v) : null;
+  };
+  var last = sheet.getLastRow();
+  if (last < 2) return 0;
+  if (!planColumnRewrite_(sheet.getRange(2, 3, last - 1, 1).getDisplayValues(), mapFn).length) return 0;
+  return withLock_(function () { return rewriteColumn_(sheet, 3, mapFn); });
+}
+
+/** ワークアウトシートの 1 列を mapFn で書き換える（変わるセルだけ・文字列として）。書き換えた行数を返す。 */
+function rewriteColumn_(sheet, column, mapFn) {
+  var last = sheet.getLastRow();
+  if (last < 2) return 0;
+  var plan = planColumnRewrite_(sheet.getRange(2, column, last - 1, 1).getDisplayValues(), mapFn);
+  var byValue = {};
+  plan.forEach(function (p) {
+    (byValue[p.value] = byValue[p.value] || []).push(p.index + 2);
+  });
+  var letter = String.fromCharCode(64 + column);
+  Object.keys(byValue).forEach(function (value) {
+    var a1 = groupConsecutive_(byValue[value]).map(function (g) {
+      return letter + g.start + ':' + letter + (g.start + g.count - 1);
+    });
+    sheet.getRangeList(a1).setValue(asTextCell_(value));
+  });
+  return plan.length;
 }
 
 function handleDeleteDay_(dateIso) {

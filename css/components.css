@@ -696,6 +696,22 @@ textarea.field {
 .toast.error svg {
   color: var(--c-danger);
 }
+.toast-msg {
+  flex: 1;
+  min-width: 0;
+}
+.toast-act {
+  flex-shrink: 0;
+  margin: -8px -6px -8px 0;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  background: var(--fill);
+  font: 600 15px/1 var(--font);
+}
+.toast-act:active {
+  background: var(--fill-2);
+}
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(-70px) scale(0.92); }
   to { opacity: 1; transform: translateY(0) scale(1); }

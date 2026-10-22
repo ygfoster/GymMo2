@@ -18,7 +18,7 @@ export function createHistoryView() {
     eyebrow: 'ワークアウトの記録',
     className: 'history',
     onRefresh: () => sync(),
-    right: html`<button class="nav-btn pill" data-act="add">${icons.plus}<span>記録</span></button>`,
+    right: html`<button class="nav-btn pill nav-add" data-act="add" aria-label="ワークアウトを記録">${icons.plus}<span>記録</span></button>`,
   });
   const stats = createEl(html`<div class="stat-trio"></div>`);
   const calCard = createEl(html`<section class="card cal-card rise" style="--i:1"></section>`);
@@ -83,12 +83,12 @@ export function createHistoryView() {
   });
 
   const lazy = lazyUpdater(render);
-  const off = on('data', lazy.request);
+  const offs = [on('data', lazy.request), on('settings', lazy.request)];
   render();
   return {
     el: screen.el,
     onShow: lazy.show,
     onHide: lazy.hide,
-    destroy: off,
+    destroy: () => offs.forEach((f) => f()),
   };
 }

@@ -183,7 +183,7 @@ svg {
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   background: var(--bg);
-  padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 28px);
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 44px);
   scrollbar-width: none;
   will-change: transform, opacity;
 }
@@ -191,7 +191,7 @@ svg {
   display: none;
 }
 .screen.has-dock {
-  padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 112px);
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 130px);
 }
 
 /* 画面遷移（プッシュ / ポップ / タブ切替） */
@@ -325,6 +325,24 @@ svg {
   font-size: 15px;
   font-weight: 600;
 }
+/* 履歴の「＋ 記録」: 画面の角から少し内側へ寄せ、ひと回り大きく（タップ範囲は見た目より広い） */
+.nav-btn.nav-add {
+  position: relative;
+  height: 38px;
+  margin-right: 10px;
+  padding: 0 17px 0 13px;
+  gap: 4px;
+  font-size: 16px;
+}
+.nav-btn.nav-add::after {
+  content: '';
+  position: absolute;
+  inset: -6px -10px;
+}
+.nav-btn.nav-add svg {
+  width: 17px;
+  height: 17px;
+}
 
 .content {
   padding: 0 var(--gutter);
@@ -397,35 +415,41 @@ svg {
 }
 
 .tab-add {
+  position: relative;
   flex: 0 0 auto;
-  width: 54px;
+  width: 76px;
   height: var(--tabbar-h);
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
+/* 中央のダンベルボタン: 円の約 3 割がタブバーの上にはみ出す */
 .tab-add-btn {
-  width: 46px;
-  height: 46px;
+  --size: 64px;
+  --lift: 19px;
+  position: absolute;
+  left: 50%;
+  top: calc(var(--lift) * -1);
+  width: var(--size);
+  height: var(--size);
+  margin-left: calc(var(--size) / -2);
   border-radius: 50%;
   display: grid;
   place-items: center;
   background: var(--label);
   color: var(--label-inverse);
-  box-shadow: 0 6px 18px var(--shadow-color);
+  box-shadow: 0 8px 22px light-dark(rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.7)), 0 0 0 0.5px var(--sep);
   transition: transform var(--t-spring) var(--spring), box-shadow var(--t-fast);
 }
 .tab-add-btn svg {
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
+  stroke-width: 2;
 }
 .tab-add-btn:active {
   transform: scale(0.9);
 }
 
-/* 記録シートが開いている間はタブバーを隠す */
+/* 記録シートが開いている間はタブバーを隠す（はみ出したボタンも見えなくなるまで下げる） */
 .shell.hide-tabbar .tabbar {
-  transform: translateY(110%);
+  transform: translateY(calc(100% + 30px));
 }
 
 /* ----- スケルトン（読み込み中の淡い光） ----- */

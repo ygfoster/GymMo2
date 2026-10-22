@@ -335,20 +335,31 @@ export function showHud({ text, sub = '', kind = 'check', duration = 1400 }) {
 
 /* ---------- トースト ---------- */
 let toastLayer = null;
-export function toast(message, { kind = 'info', duration = 3200 } = {}) {
+/** action: { label, onSelect } を渡すと右端にボタン（「取り消す」など）を出す */
+export function toast(message, { kind = 'info', duration = 3200, action = null } = {}) {
   if (!toastLayer || !toastLayer.isConnected) {
     toastLayer = createEl(html`<div class="toast-layer"></div>`);
     toastLayer.style.zIndex = 9999;
     root.append(toastLayer);
   }
   const icon = kind === 'error' ? icons.alert : kind === 'offline' ? icons.cloudOff : icons.check;
-  const el = createEl(html`<div class="toast ${kind}" role="status">${icon}<div>${message}</div></div>`);
+  const el = createEl(html`<div class="toast ${kind}" role="status">${icon}<div class="toast-msg">${message}</div>${action ? html`<button class="toast-act">${action.label}</button>` : ''}</div>`);
   toastLayer.append(el);
   if (kind === 'error') haptic.error();
-  setTimeout(() => {
+  let gone = false;
+  const dismiss = () => {
+    if (gone) return;
+    gone = true;
     el.classList.add('out');
     setTimeout(() => el.remove(), 320);
-  }, duration);
+  };
+  el.querySelector('.toast-act')?.addEventListener('click', () => {
+    haptic.tap();
+    action.onSelect?.();
+    dismiss();
+  });
+  setTimeout(dismiss, duration);
+  return { dismiss };
 }
 
 export { esc };

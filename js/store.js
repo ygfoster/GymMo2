@@ -2,7 +2,7 @@
 import { CONFIG } from './config.js';
 import { createLiveApi, createDemoApi, ApiError } from './api.js';
 import { safeStorage } from './lib/storage.js';
-import { rowsToTraining, rowsToHealth, trainingToRows, mergeHealth, normalizeHealthRow, normPart } from './lib/parse.js';
+import { rowsToTraining, rowsToHealth, trainingToRows, mergeHealth, normalizeHealthRow, normPart, setKnownParts, OTHER_PART, normalizeExerciseName } from './lib/parse.js';
 import { buildExerciseIndex } from './lib/metrics.js';
 import { setHapticsEnabled } from './lib/haptics.js';
 import { setSoundEnabled } from './lib/sound.js';
@@ -18,7 +18,15 @@ const KEYS = {
   draft: (d) => K(`draft.v1.${d}`),
 };
 
-export const PART_ORDER = ['胸', '背中', '脚', '肩', '腕', 'その他'];
+/** 部位の既定値。名前・色・休憩時間は設定で変えられ、追加・削除もできる。「その他」は固定の受け皿（other）。 */
+export const DEFAULT_PARTS = [
+  { id: 'chest', name: '胸', color: '#FF453A', rest: 180 },
+  { id: 'back', name: '背中', color: '#0A84FF', rest: 180 },
+  { id: 'legs', name: '脚', color: '#30D158', rest: 180 },
+  { id: 'shoulders', name: '肩', color: '#FF9F0A', rest: 90 },
+  { id: 'arms', name: '腕', color: '#BF5AF2', rest: 120 },
+];
+export const PART_NAME_MAX = 12;
 
 export const DEFAULT_SETTINGS = {
   theme: 'auto', // auto | light | dark
@@ -29,10 +37,48 @@ export const DEFAULT_SETTINGS = {
     autoStart: true,
     nudge: true,
     notify: native.available, // アプリ版は通知が主役なので既定でオン（ブラウザ版は許可が要るのでオフ）
-    presets: { 胸: 180, 背中: 180, 脚: 180, 肩: 90, 腕: 120, その他: 120 },
   },
-  partColors: { 胸: '#FF453A', 背中: '#0A84FF', 脚: '#30D158', 肩: '#FF9F0A', 腕: '#BF5AF2', その他: '#8E8E93' },
+  parts: DEFAULT_PARTS,
+  other: { color: '#8E8E93', rest: 120 },
 };
+
+/** 旧形式（partColors と timer.presets を部位名で持っていた v1.0）の設定を、parts の配列へ移す */
+function migrateSettings(saved) {
+  if (!saved || typeof saved !== 'object' || Array.isArray(saved.parts)) return saved;
+  const colors = saved.partColors || {};
+  const presets = saved.timer?.presets || {};
+  const out = { ...saved };
+  out.parts = DEFAULT_PARTS.map((p) => ({ ...p, color: colors[p.name] || p.color, rest: Number(presets[p.name]) || p.rest }));
+  out.other = { color: colors[OTHER_PART] || DEFAULT_SETTINGS.other.color, rest: Number(presets[OTHER_PART]) || DEFAULT_SETTINGS.other.rest };
+  delete out.partColors;
+  if (out.timer) {
+    out.timer = { ...out.timer };
+    delete out.timer.presets;
+  }
+  return out;
+}
+
+/** 保存値が壊れていても動くように整える（名前の重複・空・「その他」は除く） */
+function sanitizeParts(list) {
+  const seen = new Set();
+  const out = [];
+  for (const p of Array.isArray(list) ? list : []) {
+    const name = String(p?.name ?? '').trim().slice(0, PART_NAME_MAX);
+    if (!name || name === OTHER_PART || seen.has(name)) continue;
+    seen.add(name);
+    out.push({
+      id: String(p.id || newPartId()),
+      name,
+      color: /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : '#8E8E93',
+      rest: clampRest(p.rest),
+    });
+  }
+  return out;
+}
+
+const clampRest = (v) => Math.min(600, Math.max(15, Math.round(Number(v) || 120)));
+let idSeq = 0;
+const newPartId = () => `p${Date.now().toString(36)}${(idSeq++).toString(36)}`;
 
 function mergeSettings(base, saved) {
   const out = JSON.parse(JSON.stringify(base));
@@ -58,7 +104,7 @@ export const state = {
   training: {},
   health: {},
   queue: [],
-  settings: mergeSettings(DEFAULT_SETTINGS, null),
+  settings: loadSettings(null),
   sync: { state: 'idle', error: null, lastAt: null, pending: 0 },
 };
 
@@ -94,11 +140,27 @@ const bump = () => {
 };
 
 /* ---------- 設定 ---------- */
+function loadSettings(saved) {
+  const out = mergeSettings(DEFAULT_SETTINGS, migrateSettings(saved));
+  out.parts = sanitizeParts(out.parts);
+  out.other = { color: /^#[0-9a-f]{6}$/i.test(out.other?.color) ? out.other.color : DEFAULT_SETTINGS.other.color, rest: clampRest(out.other?.rest) };
+  return out;
+}
+
+const partNamesKey = () => state.settings.parts.map((p) => p.name).join('\u0000');
+
 export function updateSettings(patch) {
+  const before = partNamesKey();
   state.settings = mergeSettings(state.settings, patch);
+  if (patch.parts) state.settings.parts = sanitizeParts(state.settings.parts);
   safeStorage.write(KEYS.settings, state.settings);
   applySettings();
   emit('settings');
+  // 部位の一覧が変わると、集計（どの記録を「その他」にまとめるか）も変わる
+  if (partNamesKey() !== before) {
+    bump();
+    emit('data');
+  }
 }
 
 export function effectiveScheme() {
@@ -120,10 +182,128 @@ export function applySettings() {
     const dark = effectiveScheme() === 'dark';
     native.setTheme(dark, dark ? '#000000' : '#F2F2F7');
   }
-  for (const [part, color] of Object.entries(s.partColors)) root.style.setProperty(`--part-${PART_ORDER.indexOf(part)}`, color);
+  setKnownParts(s.parts.map((p) => p.name));
 }
 
-export const partColor = (part) => state.settings.partColors[part] || state.settings.partColors['その他'];
+/* ---------- 部位 ---------- */
+/** 部位名（「その他」を含む、表示順） */
+export const allParts = () => [...state.settings.parts.map((p) => p.name), OTHER_PART];
+const findPart = (name) => {
+  const n = normPart(name);
+  return state.settings.parts.find((p) => p.name === n) || null;
+};
+/** 登録されていない部位（削除した部位・自由入力）は「その他」の色と休憩時間を使う */
+export const partColor = (part) => findPart(part)?.color || state.settings.other.color;
+export const partRest = (part) => findPart(part)?.rest ?? state.settings.other.rest;
+
+/** 部位名の検証。問題があればメッセージを返す。 */
+export function validatePartName(name, { exceptId = null } = {}) {
+  const n = String(name ?? '').trim();
+  if (!n) return '名前を入力してください';
+  if (n.length > PART_NAME_MAX) return `${PART_NAME_MAX}文字以内にしてください`;
+  if (n === OTHER_PART) return '「その他」は使えません';
+  if (state.settings.parts.some((p) => p.name === n && p.id !== exceptId)) return '同じ名前の部位があります';
+  return null;
+}
+
+export function updatePart(id, patch) {
+  if (id === 'other') {
+    const other = { ...state.settings.other, ...patch };
+    if (patch.rest != null) other.rest = clampRest(patch.rest);
+    updateSettings({ other });
+    return;
+  }
+  updateSettings({ parts: state.settings.parts.map((p) => (p.id === id ? { ...p, ...patch, ...(patch.rest != null ? { rest: clampRest(patch.rest) } : {}) } : p)) });
+}
+
+export function addPart(name, color) {
+  const err = validatePartName(name);
+  if (err) throw new Error(err);
+  const part = { id: newPartId(), name: String(name).trim(), color, rest: state.settings.other.rest };
+  updateSettings({ parts: [...state.settings.parts, part] });
+  return part;
+}
+
+/** 部位を削除する。その部位の過去の記録は名前を残したまま「その他」として表示される。 */
+export function deletePart(id) {
+  updateSettings({ parts: state.settings.parts.filter((p) => p.id !== id) });
+}
+
+export function movePart(id, dir) {
+  const list = state.settings.parts.slice();
+  const i = list.findIndex((p) => p.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  updateSettings({ parts: list });
+}
+
+/**
+ * 部位の名前を変える。過去の記録（端末のキャッシュ・下書き・シート）の部位名も新しい名前に書き換える。
+ * @returns {Promise<{synced:boolean, count:number}>}
+ */
+export async function renamePart(id, nextName) {
+  const part = state.settings.parts.find((p) => p.id === id);
+  if (!part) throw new Error('部位が見つかりません');
+  const to = String(nextName ?? '').trim();
+  if (to === part.name) return { synced: true, count: 0 };
+  const err = validatePartName(to, { exceptId: id });
+  if (err) throw new Error(err);
+  // 「足」は「脚」の表記ゆれとして扱っているので、一緒に書き換える
+  const from = part.name === '脚' ? ['脚', '足'] : [part.name];
+  updatePart(id, { name: to });
+  let count = 0;
+  if (state.mode) {
+    count = renameInTraining(state.training, from, to);
+    renameInDrafts(from, to);
+    enqueue({ kind: 'rename', field: 'part', from, to });
+    bump();
+    persistCache();
+    emit('data');
+    try {
+      await flushQueue();
+      return { synced: true, count };
+    } catch {
+      return { synced: false, count };
+    }
+  }
+  return { synced: true, count };
+}
+
+/** 端末内の記録の部位名を書き換える。書き換えた日数を返す。 */
+function renameInTraining(training, from, to) {
+  let count = 0;
+  for (const day of Object.values(training)) {
+    let hit = false;
+    if (from.includes(String(day.part ?? '').trim())) {
+      day.part = to;
+      hit = true;
+    }
+    for (const ex of day.exercises) {
+      if (from.includes(String(ex.part ?? '').trim())) {
+        ex.part = to;
+        hit = true;
+      }
+    }
+    if (hit) count += 1;
+  }
+  return count;
+}
+
+function renameInDrafts(from, to) {
+  const prefix = KEYS.draft('');
+  let keys = [];
+  try {
+    keys = Object.keys(localStorage).filter((k) => k.startsWith(prefix));
+  } catch {
+    return;
+  }
+  for (const k of keys) {
+    const d = safeStorage.read(k, null);
+    if (d && from.includes(String(d.part ?? '').trim())) safeStorage.write(k, { ...d, part: to });
+    else if (d && d.part === OTHER_PART && from.includes(String(d.partCustom ?? '').trim())) safeStorage.write(k, { ...d, part: to, partCustom: '' });
+  }
+}
 
 /* ---------- API ---------- */
 let api = null;
@@ -168,7 +348,7 @@ function setSync(patch) {
 
 /* ---------- 初期化・接続 ---------- */
 export function init() {
-  state.settings = mergeSettings(DEFAULT_SETTINGS, safeStorage.read(KEYS.settings, null));
+  state.settings = loadSettings(safeStorage.read(KEYS.settings, null));
   applySettings();
   window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', applySettings);
 
@@ -250,7 +430,9 @@ let flushing = null;
 function applyQueueOverlay(training) {
   for (const op of state.queue) {
     if (op.kind === 'delete') delete training[op.date];
-    else {
+    else if (op.kind === 'rename') {
+      if (op.field === 'part') renameInTraining(training, op.from, op.to);
+    } else {
       const day = rowsToTraining(op.rows)[op.date];
       if (day) training[op.date] = day;
     }
@@ -297,28 +479,39 @@ export function sync({ quiet = false } = {}) {
 }
 
 export function flushQueue() {
-  if (!api || flushing) return flushing || Promise.resolve();
-  flushing = (async () => {
+  if (!api) return Promise.resolve();
+  if (flushing) return flushing;
+  if (!state.queue.length) return Promise.resolve();
+  // 注意: async 関数は最初の await まで同期的に走る。以前は finally（flushing = null）が代入より先に実行され、
+  // 解決済みの Promise が flushing に残って以後の送信が止まることがあった。代入後に片付けるようにする。
+  const run = (async () => {
     try {
       while (state.queue.length) {
         const op = state.queue[0];
         if (op.kind === 'delete') await api.deleteDay(op.date);
+        else if (op.kind === 'rename') await api.renameValues(op.field, op.from, op.to);
         else await api.saveDay(op.date, op.rows);
-        state.queue.shift();
+        // 送信中に同じ日が保存し直されると、その操作はキューから差し替えられている。送った操作そのものだけを取り除く
+        const i = state.queue.indexOf(op);
+        if (i >= 0) state.queue.splice(i, 1);
         persistQueue();
       }
     } catch (e) {
       handleError(e);
       throw e;
-    } finally {
-      flushing = null;
     }
   })();
-  return flushing;
+  flushing = run;
+  const clear = () => {
+    if (flushing === run) flushing = null;
+  };
+  run.then(clear, clear);
+  return run;
 }
 
 function enqueue(op) {
-  state.queue = state.queue.filter((q) => q.date !== op.date);
+  // 同じ日の保存・削除は最後の 1 件だけ送れば足りる（名前の変更は日付を持たないので重ねない）
+  if (op.date) state.queue = state.queue.filter((q) => q.date !== op.date);
   state.queue.push({ ...op, at: Date.now() });
   persistQueue();
 }
@@ -346,7 +539,7 @@ export async function refreshHealth(date, { force = false } = {}) {
 export function cleanDay(input) {
   const exercises = [];
   for (const ex of input.exercises || []) {
-    const name = String(ex.name || '').trim();
+    const name = normalizeExerciseName(ex.name);
     const sets = (ex.sets || []).filter((s) => s.w != null || s.r != null).map((s) => ({ w: s.w ?? null, r: s.r ?? null }));
     const memo = String(ex.memo || '').trim();
     if (!name && !sets.length && !memo) continue;

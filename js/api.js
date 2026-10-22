@@ -51,6 +51,7 @@ export function createLiveApi({ url, getToken }) {
     health: (date) => call('health', { date }, 45000),
     saveDay: (date, rows) => call('saveDay', { date, rows }),
     deleteDay: (date) => call('deleteDay', { date }),
+    renameValues: (field, from, to) => call('renameValues', { field, from, to }, 45000),
   };
 }
 
@@ -94,6 +95,18 @@ export function createDemoApi() {
       db.training = db.training.filter((r) => parseSheetDate(r.date) !== date);
       persist();
       return { ok: true };
+    },
+    async renameValues(field, from, to) {
+      await wait();
+      const key = field === 'exercise' ? 'exercise' : 'part';
+      let count = 0;
+      db.training = db.training.map((r) => {
+        if (!from.includes(String(r[key] ?? '').trim())) return r;
+        count += 1;
+        return { ...r, [key]: to };
+      });
+      persist();
+      return { ok: true, count };
     },
     reset() {
       safeStorage.remove(DEMO_KEY);

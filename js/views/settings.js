@@ -3,10 +3,10 @@ import { html, createEl } from '../lib/html.js';
 import { icons } from '../ui/icons.js';
 import { createScreen } from './common.js';
 import { morph } from '../lib/dom.js';
-import { state, on, updateSettings, sync, disconnect, resetDemo, PART_ORDER, partColor } from '../store.js';
+import { state, on, updateSettings, sync, disconnect, resetDemo, partColor, updatePart, addPart, deletePart, movePart, renamePart, validatePartName, PART_NAME_MAX } from '../store.js';
 import { CONFIG } from '../config.js';
 import { openSheet, confirmDialog, toast, showHud } from '../ui/overlay.js';
-import { formatSleep, trainingToRows } from '../lib/parse.js';
+import { formatSleep, trainingToRows, normPart, OTHER_PART } from '../lib/parse.js';
 import { fmtClock, fmtInt } from '../lib/format.js';
 import { haptic } from '../lib/haptics.js';
 import { toSheetDate } from '../lib/dates.js';
@@ -65,6 +65,17 @@ export function createSettingsView() {
     <button class="switch" role="switch" aria-checked="${!!on_}" data-toggle="${key}" aria-label="${label}"></button>
   </div>`;
 
+  // 通知がオンなのに端末側で許可されていない場合は、その旨を表示する
+  const notifyBlocked = () => {
+    if (!state.settings.timer.notify) return false;
+    if (native.available) return !native.notificationsAllowed();
+    return typeof Notification !== 'undefined' && Notification.permission !== 'granted';
+  };
+  const notifySub = () => {
+    if (notifyBlocked()) return native.available ? '⚠︎ Android の設定で通知がオフになっています' : '⚠︎ ブラウザの設定で通知がブロックされています';
+    return native.available ? 'カウントダウンと終了の合図を通知で' : '画面を閉じているときに通知します';
+  };
+
   let rendered = false;
   const render = () => {
     const s = state.settings;
@@ -80,10 +91,6 @@ export function createSettingsView() {
               <button data-theme="dark" aria-pressed="${s.theme === 'dark'}">ダーク</button>
             </div>
           </div>
-          <button class="row has-icon" data-open="colors">${iconTile('#FF9F0A', icons.paint)}
-            <div class="row-body"><div class="row-title">部位の色</div></div>
-            <div class="row-value"><span class="swatches">${PART_ORDER.map((p) => html`<i style="background:${partColor(p)}"></i>`)}</span></div>${icons.rowChevron}
-          </button>
         </div>
       </div>
 
@@ -100,10 +107,10 @@ export function createSettingsView() {
         <div class="group">
           ${toggle('autoStart', 'セット完了で自動開始', s.timer.autoStart, icons.stopwatch, '#FF2D55', '✓を押すとタイマーが始まります')}
           ${toggle('nudge', '入力後にそっと知らせる', s.timer.nudge, icons.sparkle, '#FF9500', '✓がやさしく脈動して知らせます')}
-          ${toggle('notify', native.available ? '通知欄にタイマーを表示' : '休憩終了を通知', s.timer.notify, icons.bell, '#007AFF', native.available ? 'カウントダウンと終了の合図を通知で' : '画面を閉じているときに通知します')}
-          <button class="row has-icon" data-open="rest">${iconTile('#30B0C7', icons.history)}
-            <div class="row-body"><div class="row-title">部位ごとの休憩時間</div></div>
-            <div class="row-value">${fmtClock(s.timer.presets['胸'])}〜</div>${icons.rowChevron}
+          ${toggle('notify', native.available ? '通知欄にタイマーを表示' : '休憩終了を通知', s.timer.notify, icons.bell, '#007AFF', notifySub())}
+          <button class="row has-icon" data-open="parts">${iconTile('#30B0C7', icons.dumbbell)}
+            <div class="row-body"><div class="row-title">部位と休憩時間</div><div class="row-sub">名前・色・休憩時間・追加と削除</div></div>
+            <div class="row-value"><span class="swatches">${[...s.parts.map((p) => p.color), s.other.color].map((c) => html`<i style="background:${c}"></i>`)}</span></div>${icons.rowChevron}
           </button>
         </div>
       </div>
@@ -153,47 +160,180 @@ export function createSettingsView() {
     rendered = true;
   };
 
-  /* ---------- シート ---------- */
-  const openRestSheet = () => {
-    const body = createEl(html`<div><div class="group rest-list"></div><p class="section-note">セット完了のとき、選んだ部位の時間で休憩タイマーが始まります。</p></div>`);
+  /* ---------- 部位と休憩時間 ---------- */
+  const daysWithPart = (names) => Object.values(state.training).filter((d) => names.includes(normPart(d.part)) || d.exercises.some((e) => names.includes(normPart(e.part)))).length;
+
+  const openPartsSheet = () => {
+    const body = createEl(html`<div class="parts-editor">
+      <div class="group parts-list"></div>
+      <div class="group" style="margin-top:14px"><button class="row add-part" data-add>${iconTile('#34C759', icons.plus)}<div class="row-body"><div class="row-title accent">部位を追加</div></div></button></div>
+      <p class="section-note">部位をタップすると名前・色・並び順の変更や削除ができます。セット完了のとき、選んだ部位の休憩時間でタイマーが始まります。</p>
+    </div>`);
+    const restRow = (id, name, color, rest, editable) => html`<div class="row part-row" data-id="${id}">
+      <button class="part-main" data-edit="${id}" aria-label="${name}を編集">
+        <i class="part-dot" style="background:${color}"></i>
+        <span class="part-name">${name}</span>${editable ? '' : html`<span class="part-fixed">固定</span>`}
+      </button>
+      <div class="row-value num part-rest">${fmtClock(rest)}</div>
+      <div class="stepper"><button data-rest="${id}" data-d="-1" aria-label="${name}の休憩を15秒短く">−</button><span class="sep"></span><button data-rest="${id}" data-d="1" aria-label="${name}の休憩を15秒長く">＋</button></div>
+    </div>`;
     const paint = () => {
-      body.querySelector('.rest-list').innerHTML = String(html`${PART_ORDER.map((p) => html`<div class="row">
-        <i class="part-bar" style="background:${partColor(p)}"></i>
-        <div class="row-body"><div class="row-title">${p}</div></div>
-        <div class="row-value num">${fmtClock(state.settings.timer.presets[p])}</div>
-        <div class="stepper"><button data-rest="${p}" data-d="-1" aria-label="${p}を15秒短く">−</button><span class="sep"></span><button data-rest="${p}" data-d="1" aria-label="${p}を15秒長く">＋</button></div>
-      </div>`)}`);
+      const st = state.settings;
+      body.querySelector('.parts-list').innerHTML = String(html`${st.parts.map((p) => restRow(p.id, p.name, p.color, p.rest, true))}${restRow('other', OTHER_PART, st.other.color, st.other.rest, false)}`);
     };
     paint();
     body.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-rest]');
-      if (!b) return;
-      haptic.select();
-      const p = b.dataset.rest;
-      const v = Math.min(600, Math.max(15, state.settings.timer.presets[p] + Number(b.dataset.d) * 15));
-      updateSettings({ timer: { presets: { [p]: v } } });
-      paint();
+      const r = e.target.closest('[data-rest]');
+      if (r) {
+        haptic.select();
+        const id = r.dataset.rest;
+        const cur = id === 'other' ? state.settings.other.rest : state.settings.parts.find((p) => p.id === id)?.rest;
+        if (cur == null) return;
+        updatePart(id, { rest: Math.min(600, Math.max(15, cur + Number(r.dataset.d) * 15)) });
+        paint();
+        return;
+      }
+      const ed = e.target.closest('[data-edit]');
+      if (ed) {
+        haptic.tap();
+        openPartEditor(ed.dataset.edit, paint);
+        return;
+      }
+      if (e.target.closest('[data-add]')) {
+        haptic.tap();
+        openPartEditor(null, paint);
+      }
     });
-    openSheet({ title: '部位ごとの休憩時間', content: body, right: html`<button class="nav-btn strong" data-close>完了</button>` });
+    openSheet({ title: '部位と休憩時間', tall: true, content: body, right: html`<button class="nav-btn strong" data-close>完了</button>` });
   };
 
-  const openColorSheet = () => {
-    const body = createEl(html`<div><div class="group color-list"></div></div>`);
-    const paint = () => {
-      body.querySelector('.color-list').innerHTML = String(html`${PART_ORDER.map((p) => html`<div class="row color-row">
-        <div class="row-body"><div class="row-title">${p}</div>
-          <div class="palette">${PALETTE.map((c) => html`<button class="swatch" data-part="${p}" data-c="${c}" aria-pressed="${partColor(p).toLowerCase() === c.toLowerCase()}" aria-label="${p}の色 ${c}" style="background:${c}"></button>`)}</div></div>
-      </div>`)}`);
+  /** 部位の編集（id=null で追加、'other' は色だけ） */
+  const openPartEditor = (id, onDone) => {
+    const isNew = id == null;
+    const isOther = id === 'other';
+    const part = isNew ? null : isOther ? { id: 'other', name: OTHER_PART, ...state.settings.other } : state.settings.parts.find((p) => p.id === id);
+    if (!isNew && !part) return;
+    const used = new Set(state.settings.parts.map((p) => p.color.toLowerCase()));
+    let color = part?.color || PALETTE.find((c) => !used.has(c.toLowerCase())) || PALETTE[0];
+    const idx = isNew || isOther ? -1 : state.settings.parts.findIndex((p) => p.id === id);
+    const last = state.settings.parts.length - 1;
+    const records = isNew || isOther ? 0 : daysWithPart(part.name === '脚' ? ['脚', '足'] : [part.name]);
+
+    const body = createEl(html`<div class="part-editor">
+      <div class="section-head"><h2 class="cap">名前</h2></div>
+      <div class="group pad">
+        ${isOther
+          ? html`<div class="row"><div class="row-body"><div class="row-title">${OTHER_PART}</div><div class="row-sub">どの部位にも当てはまらない記録の受け皿なので、名前の変更と削除はできません</div></div></div>`
+          : html`<input class="field part-name-in" maxlength="${PART_NAME_MAX}" placeholder="例: 胸、背中、二頭筋" value="${part?.name || ''}" enterkeyhint="done" autocomplete="off" aria-label="部位の名前" />
+            <p class="field-error" hidden></p>`}
+      </div>
+      ${!isNew && !isOther && records ? html`<p class="section-note">名前を変えると、過去の記録（${records}日分）も新しい名前に書き換わります。</p>` : ''}
+      <div class="section-head"><h2 class="cap">色</h2></div>
+      <div class="group pad"><div class="palette">${PALETTE.map((c) => html`<button class="swatch" data-c="${c}" aria-pressed="${color.toLowerCase() === c.toLowerCase()}" aria-label="色 ${c}" style="background:${c}"></button>`)}</div></div>
+      ${idx >= 0 && last > 0
+        ? html`<div class="section-head"><h2 class="cap">並び順</h2></div>
+          <div class="group"><div class="row"><div class="row-body"><div class="row-title order-n">${idx + 1}番目</div></div>
+            <div class="stepper order-stepper"><button data-move="-1" aria-label="上へ" ${idx === 0 ? 'disabled' : ''}>${icons.chevronLeft}</button><span class="sep"></span><button data-move="1" aria-label="下へ" ${idx === last ? 'disabled' : ''}>${icons.chevronRight}</button></div></div></div>`
+        : ''}
+      ${!isNew && !isOther
+        ? html`<div class="group" style="margin-top:26px"><button class="row danger del-part" data-del><div class="row-body"><div class="row-title">この部位を削除</div></div></button></div>
+          <p class="section-note">${records ? `削除しても過去の記録（${records}日分）は消えず、「その他」として表示されます。同じ名前の部位を追加し直すと元に戻ります。` : 'この部位の記録はありません。'}</p>`
+        : ''}
+    </div>`);
+    const input = body.querySelector('.part-name-in');
+    const errEl = body.querySelector('.field-error');
+    const showErr = (msg) => {
+      if (!errEl) return;
+      errEl.textContent = msg || '';
+      errEl.hidden = !msg;
     };
-    paint();
-    body.addEventListener('click', (e) => {
-      const b = e.target.closest('.swatch');
-      if (!b) return;
-      haptic.select();
-      updateSettings({ partColors: { [b.dataset.part]: b.dataset.c } });
-      paint();
+    input?.addEventListener('input', () => showErr(''));
+
+    let sheet;
+    const commit = async () => {
+      if (isOther) {
+        updatePart('other', { color });
+        sheet.close();
+        onDone();
+        return;
+      }
+      const name = input.value.trim();
+      const err = validatePartName(name, { exceptId: isNew ? null : id });
+      if (err) {
+        haptic.error();
+        showErr(err);
+        input.focus();
+        return;
+      }
+      if (isNew) {
+        addPart(name, color);
+        sheet.close();
+        onDone();
+        showHud({ text: '追加しました', sub: name });
+        return;
+      }
+      updatePart(id, { color });
+      const renamed = name !== part.name;
+      sheet.close();
+      onDone();
+      if (renamed) {
+        const res = await renamePart(id, name).catch((er) => {
+          toast(er.message, { kind: 'error' });
+          return null;
+        });
+        onDone();
+        if (res) showHud(res.synced ? { text: '名前を変更しました', sub: res.count ? `過去の記録 ${res.count}日分も更新` : '' } : { text: '端末で変更しました', sub: '接続後にシートへ反映します', kind: 'offline' });
+      }
+    };
+
+    body.addEventListener('click', async (e) => {
+      const sw = e.target.closest('.swatch');
+      if (sw) {
+        haptic.select();
+        color = sw.dataset.c;
+        body.querySelectorAll('.swatch').forEach((b) => b.setAttribute('aria-pressed', String(b === sw)));
+        return;
+      }
+      const mv = e.target.closest('[data-move]');
+      if (mv && !mv.disabled) {
+        haptic.select();
+        movePart(id, Number(mv.dataset.move));
+        onDone();
+        const i2 = state.settings.parts.findIndex((p) => p.id === id);
+        body.querySelector('.order-n').textContent = `${i2 + 1}番目`;
+        body.querySelector('[data-move="-1"]').disabled = i2 === 0;
+        body.querySelector('[data-move="1"]').disabled = i2 === last;
+        return;
+      }
+      if (e.target.closest('[data-del]')) {
+        const ok = await confirmDialog({
+          title: `「${part.name}」を削除しますか？`,
+          message: records ? `過去の記録（${records}日分）は消えずに「その他」として表示されます。` : '',
+          confirmLabel: '削除',
+          destructive: true,
+        });
+        if (!ok) return;
+        deletePart(id);
+        haptic.warning();
+        sheet.close();
+        onDone();
+        showHud({ text: '削除しました' });
+      }
     });
-    openSheet({ title: '部位の色', content: body, right: html`<button class="nav-btn strong" data-close>完了</button>` });
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commit();
+      }
+    });
+    sheet = openSheet({
+      title: isNew ? '部位を追加' : isOther ? OTHER_PART : '部位を編集',
+      content: body,
+      left: html`<button class="nav-btn" data-close>キャンセル</button>`,
+      right: html`<button class="nav-btn strong" data-commit>${isNew ? '追加' : '完了'}</button>`,
+    });
+    sheet.$('[data-commit]').addEventListener('click', commit);
+    if (isNew) setTimeout(() => input?.focus(), 420);
   };
 
   /* ---------- 書き出し ---------- */
@@ -218,7 +358,8 @@ export function createSettingsView() {
   /* ---------- イベント ---------- */
   screen.el.addEventListener('click', async (e) => {
     const t = e.target;
-    const themeBtn = t.closest('[data-theme]');
+    // <html data-theme> にも同じ属性があるので、必ずボタンに限定する（限定しないとライト/ダーク時に全タップを横取りする）
+    const themeBtn = t.closest('button[data-theme]');
     if (themeBtn) {
       haptic.select();
       updateSettings({ theme: themeBtn.dataset.theme });
@@ -231,12 +372,14 @@ export function createSettingsView() {
       const next = !(k === 'haptics' || k === 'sound' ? state.settings[k] : state.settings.timer[k]);
       if (k === 'haptics' || k === 'sound') updateSettings({ [k]: next });
       else if (k === 'notify' && next && native.available) {
-        native.requestNotifications();
         updateSettings({ timer: { notify: true } });
+        const ok = await native.askNotifications();
+        render();
+        if (!ok) toast('通知が許可されていません。Android の「設定 › アプリ › GymMo2 › 通知」でオンにしてください', { kind: 'error', duration: 7000 });
       } else if (k === 'notify' && next) {
         if (typeof Notification === 'undefined') return toast('この端末は通知に対応していません', { kind: 'error' });
         const perm = await Notification.requestPermission();
-        if (perm !== 'granted') return toast('通知が許可されませんでした', { kind: 'error' });
+        if (perm !== 'granted') return toast('通知が許可されませんでした。ブラウザのサイト設定で通知を許可してください', { kind: 'error', duration: 6000 });
         updateSettings({ timer: { notify: true } });
       } else updateSettings({ timer: { [k]: next } });
       return;
@@ -259,8 +402,7 @@ export function createSettingsView() {
       return;
     }
     const open = t.closest('[data-open]')?.dataset.open;
-    if (open === 'rest') return openRestSheet();
-    if (open === 'colors') return openColorSheet();
+    if (open === 'parts') return openPartsSheet();
     const act = t.closest('[data-act]')?.dataset.act;
     if (act === 'sync') {
       if (!state.mode) return;
@@ -288,6 +430,9 @@ export function createSettingsView() {
 
   const offA = on('settings', render);
   const offB = on('sync', render);
+  // 端末の設定アプリで通知を許可して戻ってきたときに表示を更新する
+  const onVis = () => document.visibilityState === 'visible' && render();
+  document.addEventListener('visibilitychange', onVis);
   render();
-  return { el: screen.el, destroy() { offA(); offB(); } };
+  return { el: screen.el, destroy() { offA(); offB(); document.removeEventListener('visibilitychange', onVis); } };
 }

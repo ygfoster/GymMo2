@@ -260,3 +260,43 @@ test('html``: ネストした html と配列はそのまま埋め込まれ、nul
   const out = htmlToString(html`<ul>${[1, 2].map((n) => html`<li>${n}</li>`)}${null}${undefined}</ul>`);
   assert.equal(out, '<ul><li>1</li><li>2</li></ul>');
 });
+
+test('normalizeExerciseName: 末尾の「ロー」だけを「ロウ」に統一する', () => {
+  assert.equal(P.normalizeExerciseName('プーリーロー'), 'プーリーロウ');
+  assert.equal(P.normalizeExerciseName('プーリーロウ'), 'プーリーロウ');
+  assert.equal(P.normalizeExerciseName(' スミスベントロー '), 'スミスベントロウ');
+  assert.equal(P.normalizeExerciseName('ﾜﾝﾊﾝﾄﾞﾛｰ'), 'ﾜﾝﾊﾝﾄﾞロウ');
+  assert.equal(P.normalizeExerciseName('ローイング'), 'ローイング'); // 末尾以外は変えない
+  assert.equal(P.normalizeExerciseName('ロープエクステンション'), 'ロープエクステンション');
+  assert.equal(P.normalizeExerciseName('ケーブルロープロー'), 'ケーブルロープロウ');
+  assert.equal(P.normalizeExerciseName('ベンチプレス'), 'ベンチプレス');
+  assert.equal(P.normalizeExerciseName(''), '');
+});
+
+test('ロー/ロウの表記ゆれは同じ種目として集計し、読み込み・保存の両方で「ロウ」にそろえる', () => {
+  assert.equal(M.exerciseKey('プーリーロー'), M.exerciseKey('プーリーロウ'));
+  const t = P.rowsToTraining([
+    { date: '2026/10/01', part: '背中', exercise: 'プーリーロー', details: '1セット目: 50kg × 10回' },
+    { date: '2026/10/05', part: '背中', exercise: 'プーリーロウ', details: '1セット目: 55kg × 10回' },
+  ]);
+  assert.equal(t['2026-10-01'].exercises[0].name, 'プーリーロウ');
+  const idx = M.buildExerciseIndex(t);
+  assert.equal(idx.size, 1);
+  assert.equal([...idx.values()][0].sessions.length, 2);
+  const rows = P.trainingToRows({ date: '2026-10-07', part: '背中', exercises: [{ name: 'シーテッドロー', sets: [{ w: 40, r: 10 }], memo: '' }] });
+  assert.equal(rows[0].exercise, 'シーテッドロウ');
+});
+
+test('partCategory: 登録された部位以外（削除した部位・自由入力）は「その他」', () => {
+  try {
+    P.setKnownParts(['胸', '背中', '大腿四頭筋']);
+    assert.equal(P.partCategory('大腿四頭筋'), '大腿四頭筋');
+    assert.equal(P.partCategory('肩'), 'その他');
+    assert.equal(P.partCategory('足'), 'その他'); // 「脚」が無ければ足→脚の読み替えもしない
+    assert.deepEqual(P.getKnownParts(), ['胸', '背中', '大腿四頭筋']);
+    P.setKnownParts(['脚']);
+    assert.equal(P.partCategory('足'), '脚');
+  } finally {
+    P.setKnownParts(P.DEFAULT_PARTS);
+  }
+});

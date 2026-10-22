@@ -2,18 +2,38 @@
 // ワークアウトの書式は元の GymMo と同一（"1セット目: 50kg × 11回"）なので、両アプリが同じ行を読み書きできる。
 import { parseSheetDate, toSheetDate } from './dates.js';
 
-export const PARTS = ['胸', '背中', '腕', '肩', '脚'];
+/** 既定の部位（設定で名前の変更・追加・削除ができる。「その他」は常にある固定の受け皿） */
+export const DEFAULT_PARTS = ['胸', '背中', '脚', '肩', '腕'];
+export const OTHER_PART = 'その他';
+
+let knownParts = DEFAULT_PARTS.slice();
+
+/** 設定で編集された部位の一覧を登録する（store が設定を読むたびに呼ぶ） */
+export function setKnownParts(names) {
+  knownParts = (names || []).map((n) => String(n).trim()).filter(Boolean);
+}
+
+export const getKnownParts = () => knownParts.slice();
 
 /** 表記ゆれの吸収（足→脚）。空は '' を返す。 */
 export function normPart(p) {
   const s = String(p ?? '').trim();
-  return s === '足' ? '脚' : s;
+  return s === '足' && knownParts.includes('脚') ? '脚' : s;
 }
 
-/** 'その他' に集約した表示用カテゴリ */
+/** 表示・集計用の部位。登録されていない部位（削除した部位を含む）は「その他」にまとめる */
 export function partCategory(p) {
   const n = normPart(p);
-  return PARTS.includes(n) ? n : 'その他';
+  return knownParts.includes(n) ? n : OTHER_PART;
+}
+
+/**
+ * 種目名の表記ゆれをそろえる。末尾の「ロー」は「ロウ」に統一する（例: スミスベントロー → スミスベントロウ）。
+ * 「ローイング」「ロープ〜」など、末尾以外の「ロー」は変えない。半角の「ﾛｰ」や長音の代わりのハイフンも対象。
+ */
+export function normalizeExerciseName(name) {
+  const s = String(name ?? '').trim();
+  return s.replace(/(?:ロ|ﾛ)[ーｰ－\-]$/u, 'ロウ');
 }
 
 /** "105 g" / "+617 kcal" / "-1319 kcal" / "2,378" → 数値。解釈不能は null。 */
@@ -102,7 +122,7 @@ export function rowsToTraining(rows) {
     const details = String(row.details ?? '').trim();
     day.exercises.push({
       id: `${date}#${day.exercises.length}`,
-      name: String(row.exercise ?? '').trim() || '種目不明',
+      name: normalizeExerciseName(row.exercise) || '種目不明',
       part,
       sets,
       memo: String(row.memo ?? '').trim(),
@@ -117,7 +137,7 @@ export function rowsToTraining(rows) {
 export function trainingToRows(day) {
   const rows = [];
   for (const ex of day.exercises) {
-    const name = ex.name.trim();
+    const name = normalizeExerciseName(ex.name);
     const details = formatSets(ex.sets);
     const memo = (ex.memo || '').trim();
     if (!name && !details && !memo) continue;

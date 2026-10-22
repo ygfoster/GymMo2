@@ -130,7 +130,7 @@ function sanitizeTrainingRow_(row) {
   var cut = function (v, n) {
     return String(v === undefined || v === null ? '' : v).slice(0, n);
   };
-  var exercise = cut(row.exercise, LIMITS.exercise).trim();
+  var exercise = normalizeExerciseName_(cut(row.exercise, LIMITS.exercise));
   var details = cut(row.details, LIMITS.details).trim();
   var memo = cut(row.memo, LIMITS.memo).trim();
   if (!exercise && !details && !memo) return null;
@@ -145,6 +145,47 @@ function sanitizeTrainingRow_(row) {
 function asTextCell_(v) {
   var s = String(v === undefined || v === null ? '' : v);
   return s === '' ? '' : "'" + s;
+}
+
+/**
+ * 種目名の表記ゆれをそろえる（アプリ側 js/lib/parse.js の normalizeExerciseName と同じ規則）。
+ * 末尾の「ロー」だけを「ロウ」にする（例: スミスベントロー → スミスベントロウ）。「ローイング」などは変えない。
+ */
+var TRAILING_RO_ = /(?:ロ|ﾛ)[ーｰ－\-]$/;
+function normalizeExerciseName_(name) {
+  var s = String(name === undefined || name === null ? '' : name).trim();
+  return s.replace(TRAILING_RO_, 'ロウ');
+}
+
+/**
+ * 1 列分の表示値（[[v],[v],...]、先頭はデータ 1 行目）から、書き換えが必要な行を探す。
+ * mapFn(値) が元と異なる値を返した行を { index(0始まり), value } で返す。
+ */
+function planColumnRewrite_(values, mapFn) {
+  var out = [];
+  values.forEach(function (r, i) {
+    var cur = String(r[0] === undefined || r[0] === null ? '' : r[0]);
+    if (!cur.trim()) return;
+    var next = mapFn(cur);
+    if (next !== null && next !== undefined && next !== cur) out.push({ index: i, value: next });
+  });
+  return out;
+}
+
+/** 名前の一括変更リクエストを検証する。不正なら例外。 */
+var RENAME_FIELDS_ = { part: 2, exercise: 3 };
+function sanitizeRenameRequest_(field, from, to) {
+  if (!Object.prototype.hasOwnProperty.call(RENAME_FIELDS_, field)) throw new Error('変更できない項目です');
+  if (!Array.isArray(from) || !from.length || from.length > 10) throw new Error('変更前の名前が正しくありません');
+  var list = [];
+  from.forEach(function (v) {
+    var s = String(v === undefined || v === null ? '' : v).trim();
+    if (s && list.indexOf(s) === -1) list.push(s);
+  });
+  if (!list.length) throw new Error('変更前の名前が正しくありません');
+  var next = String(to === undefined || to === null ? '' : to).trim().slice(0, LIMITS[field]);
+  if (!next) throw new Error('新しい名前を入力してください');
+  return { column: RENAME_FIELDS_[field], from: list, to: next };
 }
 
 /** 連続する行番号をまとめて [{start, count}] にする（降順で返し、下から削除できるようにする） */
@@ -176,5 +217,6 @@ if (typeof module !== 'undefined' && module.exports) {
     hasAnyValidHealthMetric_: hasAnyValidHealthMetric_, formatGrams_: formatGrams_, formatDiff_: formatDiff_,
     minutesToSleepText_: minutesToSleepText_, mergeHealthRecords_: mergeHealthRecords_, toSheetRow_: toSheetRow_,
     sanitizeTrainingRow_: sanitizeTrainingRow_, asTextCell_: asTextCell_, groupConsecutive_: groupConsecutive_, safeEquals_: safeEquals_,
+    normalizeExerciseName_: normalizeExerciseName_, planColumnRewrite_: planColumnRewrite_, sanitizeRenameRequest_: sanitizeRenameRequest_,
   };
 }

@@ -3,7 +3,7 @@ import { CONFIG } from './config.js';
 import { safeStorage } from './lib/storage.js';
 import { haptic } from './lib/haptics.js';
 import { chime } from './lib/sound.js';
-import { state as appState } from './store.js';
+import { state as appState, partRest } from './store.js';
 import { native } from './native.js';
 
 const KEY = `${CONFIG.keyPrefix}session.v1`;
@@ -235,7 +235,7 @@ export const timer = {
     if (part !== undefined && part !== s.part) {
       s.part = part;
       if (s.status === 'idle' || s.status === 'paused') {
-        const sec = appState.settings.timer.presets[part] ?? DEFAULT_REST;
+        const sec = presetFor(part);
         s.restTotal = sec;
         s.restRemaining = sec;
         s.status = 'idle';
@@ -326,4 +326,4 @@ export const timer = {
 };
 
 /** 部位ごとの既定休憩秒 */
-export const presetFor = (part) => appState.settings.timer.presets[part] ?? DEFAULT_REST;
+export const presetFor = (part) => (part ? partRest(part) : DEFAULT_REST);

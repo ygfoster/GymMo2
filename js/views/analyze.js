@@ -2,7 +2,7 @@
 import { html, createEl } from '../lib/html.js';
 import { icons } from '../ui/icons.js';
 import { createScreen, lazyUpdater } from './common.js';
-import { state, on, getIndex, partColor, PART_ORDER, sync } from '../store.js';
+import { state, on, getIndex, partColor, allParts, sync } from '../store.js';
 import { router } from '../router.js';
 import { openSheet, closeAllLayers } from '../ui/overlay.js';
 import { barChart, sparkline } from '../ui/charts.js';
@@ -91,7 +91,7 @@ export function createAnalyzeView() {
 
     /* --- 部位別 週間セット数 --- */
     const weeks = weeklySetsByPart(state.training, r.from, r.to);
-    const partsPresent = PART_ORDER.filter((p) => weeks.some((w) => w.parts[p]));
+    const partsPresent = allParts().filter((p) => weeks.some((w) => w.parts[p]));
 
     /* --- 種目 --- */
     const exs = [...index.values()]
@@ -228,7 +228,7 @@ export function createAnalyzeView() {
   /* --- 操作 --- */
   const openAllExercises = () => {
     const index = getIndex();
-    const groups = PART_ORDER.map((p) => ({ p, list: [...index.values()].filter((e) => e.part === p).sort((a, b) => b.sessions.length - a.sessions.length) })).filter((g) => g.list.length);
+    const groups = allParts().map((p) => ({ p, list: [...index.values()].filter((e) => e.part === p).sort((a, b) => b.sessions.length - a.sessions.length) })).filter((g) => g.list.length);
     const body = createEl(html`<div>
       <div class="search"><span class="search-i">${icons.search}</span><input class="field" type="search" placeholder="種目を検索" aria-label="種目を検索" /></div>
       <div class="all-ex">${groups.map((g) => html`

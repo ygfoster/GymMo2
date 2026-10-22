@@ -102,3 +102,34 @@ test('asTextCell_: 数式・数値・日付に誤変換されないよう先頭�
   assert.equal(L.asTextCell_(null), '');
   assert.equal(L.asTextCell_(12), "'12");
 });
+
+test('normalizeExerciseName_: アプリ側と同じ規則（末尾のローだけロウに）', () => {
+  assert.equal(L.normalizeExerciseName_('スミスベントロー'), 'スミスベントロウ');
+  assert.equal(L.normalizeExerciseName_('プーリーロウ'), 'プーリーロウ');
+  assert.equal(L.normalizeExerciseName_('ローイング'), 'ローイング');
+  assert.equal(L.sanitizeTrainingRow_({ part: '背中', exercise: 'シーテッドロー', details: '', memo: 'x' }).exercise, 'シーテッドロウ');
+});
+
+test('planColumnRewrite_: 変わるセルだけを行番号つきで返す', () => {
+  const values = [['胸'], ['足'], [''], ['脚'], ['背中'], [' 脚 ']];
+  const from = ['脚', '足'];
+  const plan = L.planColumnRewrite_(values, (v) => (from.indexOf(v.trim()) !== -1 ? '大腿' : null));
+  assert.deepEqual(JSON.parse(JSON.stringify(plan)), [
+    { index: 1, value: '大腿' },
+    { index: 3, value: '大腿' },
+    { index: 5, value: '大腿' },
+  ]);
+  assert.equal(L.planColumnRewrite_([['大腿']], () => '大腿').length, 0); // 同じ値は書かない
+});
+
+test('sanitizeRenameRequest_: 項目・変更前・変更後を検証する', () => {
+  const r = L.sanitizeRenameRequest_('part', [' 脚 ', '足', '脚'], ' 大腿 ');
+  assert.equal(r.column, 2);
+  assert.deepEqual(JSON.parse(JSON.stringify(r.from)), ['脚', '足']);
+  assert.equal(r.to, '大腿');
+  assert.equal(L.sanitizeRenameRequest_('exercise', ['a'], 'b').column, 3);
+  assert.throws(() => L.sanitizeRenameRequest_('date', ['a'], 'b'));
+  assert.throws(() => L.sanitizeRenameRequest_('part', [], 'b'));
+  assert.throws(() => L.sanitizeRenameRequest_('part', ['a'], '  '));
+  assert.throws(() => L.sanitizeRenameRequest_('part', 'a', 'b'));
+});

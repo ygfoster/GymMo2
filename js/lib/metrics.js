@@ -1,6 +1,6 @@
 // トレーニング・ヘルスデータから指標を計算する純粋関数群。DOM には触れない。
 import { addDays, diffDays, startOfWeek, rangeKeys } from './dates.js';
-import { partCategory } from './parse.js';
+import { partCategory, normalizeExerciseName } from './parse.js';
 
 /* ---------- 1RM・ボリューム ---------- */
 
@@ -55,7 +55,7 @@ export function dayStats(day) {
 /* ---------- 種目インデックスと自己ベスト ---------- */
 
 export function exerciseKey(name) {
-  return String(name).normalize('NFKC').toLowerCase().replace(/[\s・･·]/g, '');
+  return normalizeExerciseName(name).normalize('NFKC').toLowerCase().replace(/[\s・･·]/g, '');
 }
 
 /**

@@ -164,6 +164,23 @@
 .xcard.is-suggesting {
   z-index: 6;
 }
+/* 種目名の候補を出している間、ほかの部分を暗くぼかす（編集中のカードと候補だけが前に出る） */
+.log-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: inherit;
+  background: light-dark(rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.58));
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.24s var(--ease-out);
+}
+.log-root.suggesting .log-scrim {
+  opacity: 1;
+  pointer-events: auto;
+}
 .xhead {
   display: flex;
   align-items: center;
@@ -190,15 +207,15 @@
 }
 .suggest {
   position: absolute;
+  z-index: 10;
   left: -8px;
   right: -8px;
   top: calc(100% + 2px);
   padding: 6px;
   border-radius: 18px;
-  background: var(--material-thick);
-  -webkit-backdrop-filter: saturate(180%) blur(36px);
-  backdrop-filter: saturate(180%) blur(36px);
-  box-shadow: 0 16px 44px var(--shadow-color), 0 0 0 0.5px var(--sep);
+  /* 下の入力欄が透けて混ざらないよう不透明にする */
+  background: light-dark(#ffffff, #2c2c2e);
+  box-shadow: 0 18px 50px light-dark(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.7)), 0 0 0 0.5px var(--sep);
   animation: menu-in var(--t-spring) var(--spring) both;
   transform-origin: 20% 0;
 }
@@ -328,42 +345,125 @@
 }
 
 .set-check {
+  /* タップ範囲は 46px のまま、見た目の円だけを小さくする */
+  position: relative;
   width: 46px;
   height: 46px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   color: transparent;
-  border: 2px solid var(--label-4);
-  transition: background var(--t-base), border-color var(--t-base), color var(--t-base), transform var(--t-pop) var(--spring-pop);
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--t-base);
+}
+.set-check::before {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  border: 1.75px solid var(--label-4);
+  transition: background var(--t-base), border-color var(--t-base), transform var(--t-pop) var(--spring-pop);
 }
 .set-check svg {
-  width: 22px;
-  height: 22px;
+  position: relative;
+  width: 15px;
+  height: 15px;
+  stroke-width: 3;
+  transition: transform var(--t-pop) var(--spring-pop);
 }
-.set-check:active {
-  transform: scale(0.88);
+.set-check:active::before {
+  transform: scale(0.86);
 }
 .set-check[aria-pressed='true'] {
-  background: var(--c-train);
-  border-color: var(--c-train);
   color: var(--label-inverse);
 }
-.set-check.burst {
+.set-check[aria-pressed='true']::before {
+  background: var(--label);
+  border-color: var(--label);
+}
+.set-check.burst::before {
   animation: check-burst 0.6s var(--spring-pop);
 }
-.set-check.hint {
-  border-color: var(--c-train);
+.set-check.burst svg {
+  animation: check-pop 0.5s var(--spring-pop);
+}
+.set-check.hint::before {
+  border-color: var(--label-2);
   animation: hint-pulse 1.7s var(--ease-in-out) infinite;
 }
 @keyframes check-burst {
-  0% { transform: scale(0.7); box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-train) 60%, transparent); }
-  55% { transform: scale(1.14); }
-  100% { transform: scale(1); box-shadow: 0 0 0 16px transparent; }
+  0% { transform: scale(0.72); box-shadow: 0 0 0 0 color-mix(in srgb, var(--label) 38%, transparent); }
+  55% { transform: scale(1.12); }
+  100% { transform: scale(1); box-shadow: 0 0 0 12px transparent; }
+}
+@keyframes check-pop {
+  0% { transform: scale(0.4); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
 }
 @keyframes hint-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-train) 55%, transparent); }
-  55% { box-shadow: 0 0 0 11px transparent; }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--label) 26%, transparent); }
+  55% { box-shadow: 0 0 0 9px transparent; }
+}
+
+/* セットの左スワイプで削除 */
+.set-swipe {
+  position: relative;
+}
+.set-swipe.revealing {
+  /* スワイプ中だけ左右を切り取る（上方向は PR バッジのはみ出しを許す） */
+  clip-path: inset(-14px 0 0 0);
+}
+.set-swipe[hidden] {
+  display: none;
+}
+.set-swipe .set {
+  /* 削除ボタンより後ろの DOM 順なので、z-index なしでも上に描かれる（候補リストより上に出ないよう z-index は付けない） */
+  background: var(--surface);
+  touch-action: pan-y;
+  transition: transform 0.42s var(--spring);
+}
+.set-swipe .set.dragging {
+  transition: none;
+}
+.set-del {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  right: 0;
+  width: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  padding-right: 18px;
+  border-radius: 13px;
+  background: var(--c-danger);
+  color: #fff;
+  font: 600 15px/1 var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--t-fast);
+}
+.set-swipe.revealing .set-del {
+  opacity: 1;
+}
+.set-swipe.dragging .set-del {
+  transition: none;
+}
+.set-del svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+.set-swipe.full .set-del {
+  justify-content: center;
+}
+.set-swipe.removing {
+  transition: height 0.26s var(--ease-out), opacity 0.2s, margin 0.26s var(--ease-out);
+  opacity: 0;
+  overflow: hidden;
 }
 .set-pr {
   position: absolute;
@@ -593,7 +693,8 @@
   position: absolute;
   left: 12px;
   right: 12px;
-  bottom: calc(var(--tabbar-h) + var(--safe-b) + 10px);
+  /* タブバー中央のボタンが上にはみ出す分（19px）だけ持ち上げる */
+  bottom: calc(var(--tabbar-h) + var(--safe-b) + 28px);
   z-index: 25;
   opacity: 0;
   transform: translateY(26px) scale(0.95);

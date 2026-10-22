@@ -1,4 +1,4 @@
-// タブバー（今日 / 履歴 / ＋記録 / 分析 / 設定）。選択中のタブをもう一度押すと先頭へスクロール or 戻る。
+// タブバー（今日 / 履歴 / 記録（ダンベル）/ 分析 / 設定）。選択中のタブをもう一度押すと先頭へスクロール or 戻る。
 import { html, createEl } from '../lib/html.js';
 import { icons } from './icons.js';
 import { router } from '../router.js';
@@ -15,7 +15,7 @@ const TABS = [
 export function createTabbar({ onAdd }) {
   const el = createEl(html`<nav class="tabbar" aria-label="メインメニュー">${TABS.map((t) =>
     t.id === 'add'
-      ? html`<div class="tab-add"><button class="tab-add-btn" data-tab="add" aria-label="ワークアウトを記録">${icons.plus}</button></div>`
+      ? html`<div class="tab-add"><button class="tab-add-btn" data-tab="add" aria-label="ワークアウトを記録">${icons.dumbbell}</button></div>`
       : html`<button class="tab" data-tab="${t.id}" aria-selected="false">${t.icon}<span>${t.label}</span></button>`
   )}</nav>`);
 
