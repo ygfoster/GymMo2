@@ -1,0 +1,466 @@
+/* ==========================================================================
+   ベース: リセット・タイポグラフィ・アプリシェル・ナビバー・タブバー
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--label);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.4;
+  letter-spacing: 0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-size-adjust: 100%;
+  font-variant-numeric: tabular-nums;
+  overscroll-behavior: none;
+}
+
+body {
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--label);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ----- タイポグラフィ ----- */
+.t-large {
+  font: 700 34px/1.12 var(--font-display);
+  letter-spacing: -0.02em;
+}
+.t-title1 {
+  font: 700 28px/1.18 var(--font-display);
+  letter-spacing: -0.015em;
+}
+.t-title2 {
+  font: 700 22px/1.22 var(--font-display);
+  letter-spacing: -0.01em;
+}
+.t-title3 {
+  font: 600 20px/1.25 var(--font-display);
+}
+.t-headline {
+  font: 600 17px/1.3 var(--font);
+}
+.t-body {
+  font: 400 17px/1.4 var(--font);
+}
+.t-callout {
+  font: 400 16px/1.38 var(--font);
+}
+.t-subhead {
+  font: 400 15px/1.35 var(--font);
+}
+.t-footnote {
+  font: 400 13px/1.35 var(--font);
+}
+.t-caption {
+  font: 500 12px/1.3 var(--font);
+}
+.t-overline {
+  font: 600 12px/1.2 var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.muted {
+  color: var(--label-2);
+}
+.faint {
+  color: var(--label-3);
+}
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum', 'cv11';
+}
+
+/* ----- アプリシェル ----- */
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.shell {
+  position: relative;
+  width: 100%;
+  max-width: var(--col);
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  isolation: isolate;
+}
+@media (min-width: 700px) {
+  .shell {
+    box-shadow: 0 0 0 0.5px var(--sep);
+  }
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  transition: transform var(--t-slow) var(--ease-out), border-radius var(--t-slow) var(--ease-out), filter var(--t-slow) var(--ease-out);
+  transform-origin: 50% 100%;
+}
+/* シートが開いているとき、背面の画面を少し奥へ（iOS のページシート風） */
+.shell.is-covered .stage {
+  transform: scale(0.94) translateY(8px);
+  border-radius: 24px;
+  filter: brightness(0.82);
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg);
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 28px);
+  scrollbar-width: none;
+  will-change: transform, opacity;
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+.screen.has-dock {
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 112px);
+}
+
+/* 画面遷移（プッシュ / ポップ / タブ切替） */
+.screen.enter-push {
+  animation: screen-push-in var(--t-slow) var(--ease-out) both;
+}
+.screen.leave-push {
+  animation: screen-push-out var(--t-slow) var(--ease-out) both;
+  pointer-events: none;
+}
+.screen.enter-pop {
+  animation: screen-pop-in var(--t-slow) var(--ease-out) both;
+}
+.screen.leave-pop {
+  animation: screen-pop-out var(--t-slow) var(--ease-out) both;
+  pointer-events: none;
+  box-shadow: -8px 0 28px var(--shadow-color);
+}
+.screen.enter-fade {
+  animation: screen-fade-in var(--t-base) var(--ease-out) both;
+}
+.screen.leave-fade {
+  animation: screen-fade-out var(--t-fast) linear both;
+  pointer-events: none;
+}
+@keyframes screen-push-in {
+  from { transform: translateX(100%); box-shadow: -8px 0 28px var(--shadow-color); }
+  to { transform: translateX(0); box-shadow: -8px 0 28px transparent; }
+}
+@keyframes screen-push-out {
+  from { transform: translateX(0); filter: brightness(1); }
+  to { transform: translateX(-28%); filter: brightness(0.7); }
+}
+@keyframes screen-pop-in {
+  from { transform: translateX(-28%); filter: brightness(0.7); }
+  to { transform: translateX(0); filter: brightness(1); }
+}
+@keyframes screen-pop-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+@keyframes screen-fade-in {
+  from { opacity: 0; transform: scale(0.992); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes screen-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ----- ナビバー（スクロールでラージタイトルがインラインに縮む） ----- */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: calc(var(--nav-h) + var(--safe-t));
+  padding-top: var(--safe-t);
+  --p: 0;
+}
+.navbar-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--material);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  backdrop-filter: saturate(180%) blur(24px);
+  border-bottom: 0.5px solid var(--sep);
+  opacity: var(--p);
+}
+.navbar-row {
+  position: relative;
+  height: var(--nav-h);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 calc(var(--gutter) - 6px);
+}
+.nav-left {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.nav-right {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.nav-title {
+  font: 600 17px/1 var(--font);
+  max-width: 56vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: var(--p);
+  transform: translateY(calc((1 - var(--p)) * 6px));
+}
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 10px;
+  border-radius: 22px;
+  font-size: 17px;
+  color: var(--label);
+  transition: opacity var(--t-fast), transform var(--t-fast) var(--ease-out), background var(--t-fast);
+}
+.nav-btn.strong {
+  font-weight: 600;
+}
+.nav-btn:active {
+  opacity: 0.45;
+  transform: scale(0.96);
+}
+.nav-btn[disabled] {
+  opacity: 0.3;
+  pointer-events: none;
+}
+.nav-btn.icon {
+  width: 44px;
+  padding: 0;
+  justify-content: center;
+}
+.nav-btn.pill {
+  background: var(--fill);
+  height: 34px;
+  min-width: 0;
+  padding: 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.content {
+  padding: 0 var(--gutter);
+}
+
+.large-title-block {
+  padding: 2px 4px 14px;
+}
+.large-title-block .eyebrow {
+  font: 600 13px/1.2 var(--font);
+  color: var(--label-2);
+  letter-spacing: 0.01em;
+  margin-bottom: 2px;
+}
+
+/* ----- タブバー ----- */
+.tabbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  height: calc(var(--tabbar-h) + var(--safe-b));
+  padding: 0 6px var(--safe-b);
+  display: flex;
+  align-items: center;
+  background: var(--material);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+  backdrop-filter: saturate(180%) blur(28px);
+  border-top: 0.5px solid var(--sep);
+  transition: transform var(--t-slow) var(--ease-out);
+}
+.tab {
+  flex: 1;
+  height: var(--tabbar-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--label-3);
+  font: 600 10px/1 var(--font);
+  letter-spacing: 0.02em;
+  transition: color var(--t-fast);
+}
+.tab svg {
+  width: 26px;
+  height: 26px;
+  transition: transform var(--t-pop) var(--spring-pop);
+}
+.tab .fill {
+  opacity: 0;
+  transition: opacity var(--t-fast);
+}
+.tab[aria-selected='true'] {
+  color: var(--label);
+}
+.tab[aria-selected='true'] .fill {
+  opacity: 1;
+}
+.tab[aria-selected='true'] svg {
+  animation: tab-pop var(--t-pop) var(--spring-pop);
+}
+.tab:active svg {
+  transform: scale(0.88);
+}
+@keyframes tab-pop {
+  from { transform: scale(0.78); }
+  to { transform: scale(1); }
+}
+
+.tab-add {
+  flex: 0 0 auto;
+  width: 54px;
+  height: var(--tabbar-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tab-add-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--label);
+  color: var(--label-inverse);
+  box-shadow: 0 6px 18px var(--shadow-color);
+  transition: transform var(--t-spring) var(--spring), box-shadow var(--t-fast);
+}
+.tab-add-btn svg {
+  width: 22px;
+  height: 22px;
+}
+.tab-add-btn:active {
+  transform: scale(0.9);
+}
+
+/* 記録シートが開いている間はタブバーを隠す */
+.shell.hide-tabbar .tabbar {
+  transform: translateY(110%);
+}
+
+/* ----- スケルトン（読み込み中の淡い光） ----- */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--fill);
+  border-radius: 8px;
+  color: transparent !important;
+  pointer-events: none;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, light-dark(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.12)) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: shimmer 1.6s var(--ease-in-out) infinite;
+}
+@keyframes shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* ----- 入場アニメーション（要素ごとに少しずつ遅らせて浮かび上がる） ----- */
+.rise {
+  animation: rise var(--t-slow) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.vstack { display: flex; flex-direction: column; }
+.hstack { display: flex; align-items: center; }
+.spacer { flex: 1; }
+.gap-4 { gap: 4px; } .gap-8 { gap: 8px; } .gap-12 { gap: 12px; } .gap-16 { gap: 16px; } .gap-24 { gap: 24px; }
+.center { text-align: center; }

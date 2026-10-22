@@ -1,0 +1,8 @@
+node_modules/
+.DS_Store
+.claude/
+backend/src/Config.gs
+backend/src/.clasp.json
+backend/.clasprc.json
+backend/node_modules/
+.secrets/

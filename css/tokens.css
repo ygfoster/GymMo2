@@ -1,0 +1,107 @@
+/* ==========================================================================
+   GymMo2 デザイントークン
+   - 色は light-dark() で一元管理。端末設定に自動追従し、設定画面からの手動切替は color-scheme で上書き。
+   - 構成: 面(surface) / ラベル / 区切り / データ色（Apple フィットネス風リング配色）/ 形 / モーション
+   ========================================================================== */
+
+:root {
+  color-scheme: light dark;
+
+  /* ----- 面 ----- */
+  --bg: light-dark(#f2f2f7, #000000);
+  --surface: light-dark(#ffffff, #1c1c1e);
+  --surface-2: light-dark(#f2f2f7, #2c2c2e);
+  --surface-3: light-dark(#e5e5ea, #3a3a3c);
+  --fill: light-dark(rgba(120, 120, 128, 0.12), rgba(120, 120, 128, 0.24));
+  --fill-2: light-dark(rgba(120, 120, 128, 0.2), rgba(120, 120, 128, 0.36));
+
+  /* ----- ラベル ----- */
+  --label: light-dark(#000000, #ffffff);
+  --label-inverse: light-dark(#ffffff, #000000);
+  --label-2: light-dark(rgba(60, 60, 67, 0.62), rgba(235, 235, 245, 0.62));
+  --label-3: light-dark(rgba(60, 60, 67, 0.32), rgba(235, 235, 245, 0.32));
+  --label-4: light-dark(rgba(60, 60, 67, 0.16), rgba(235, 235, 245, 0.16));
+  --sep: light-dark(rgba(60, 60, 67, 0.14), rgba(84, 84, 88, 0.6));
+
+  /* ----- 半透明マテリアル（ナビ/タブ/ドック） ----- */
+  --material: light-dark(rgba(246, 246, 248, 0.72), rgba(22, 22, 24, 0.72));
+  --material-thick: light-dark(rgba(250, 250, 252, 0.9), rgba(30, 30, 32, 0.9));
+  --scrim: rgba(0, 0, 0, 0.42);
+  --shadow-color: light-dark(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.6));
+
+  /* ----- データ色（意味を持つ色はここだけ。UI のクロームはモノクロ） ----- */
+  --c-move: light-dark(#ff2d55, #ff375f); /* カロリー */
+  --c-move-2: light-dark(#ff7a93, #ff7d95);
+  --c-protein: light-dark(#007aff, #0a84ff);
+  --c-fat: light-dark(#ff9500, #ff9f0a);
+  --c-carb: light-dark(#34c759, #30d158);
+  --c-sleep: light-dark(#5856d6, #7a78ff);
+  --c-sleep-2: light-dark(#8e8cf0, #a9a7ff);
+  --c-train: light-dark(#30b950, #a4f53c); /* 運動・タイマー・完了 */
+  --c-train-2: light-dark(#6fdc87, #d4ff7a);
+  --c-gold: #ffb800;
+  --c-gold-2: #ff8a00;
+  --c-danger: light-dark(#ff3b30, #ff453a);
+
+  /* ----- 形 ----- */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --r-xl: 28px;
+
+  /* ----- レイアウト ----- */
+  --col: 560px;
+  --gutter: 16px;
+  --nav-h: 44px;
+  --tabbar-h: 56px;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+
+  /* ----- タイポグラフィ ----- */
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
+    'Noto Sans JP', 'Yu Gothic', system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Hiragino Sans',
+    'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', system-ui, sans-serif;
+
+  /* ----- モーション ----- */
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1); /* iOS のシート/プッシュと同じ減速カーブ */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --spring: linear(
+    0, 0.018, 0.063, 0.128, 0.203, 0.283, 0.365, 0.445, 0.521, 0.591, 0.655, 0.713, 0.764, 0.808, 0.846, 0.879, 0.906,
+    0.929, 0.948, 0.963, 0.975, 0.984, 0.992, 0.997, 1.001, 1.004, 1.006, 1.007, 1.008, 1.008, 1.008, 1.007, 1.007,
+    1.006, 1.006, 1.005, 1.004, 1.004, 1.003, 1.003, 1
+  );
+  --spring-pop: linear(
+    0, 0.044, 0.159, 0.317, 0.495, 0.674, 0.837, 0.975, 1.083, 1.158, 1.202, 1.218, 1.212, 1.189, 1.156, 1.118, 1.079,
+    1.042, 1.011, 0.986, 0.968, 0.957, 0.953, 0.953, 0.958, 0.964, 0.973, 0.981, 0.989, 0.996, 1.002, 1.006, 1.009,
+    1.01, 1.01, 1.01, 1.008, 1.006, 1.004, 1.003, 1
+  );
+  --t-fast: 0.16s;
+  --t-base: 0.32s;
+  --t-slow: 0.5s;
+  --t-spring: 0.46s;
+  --t-pop: 0.64s;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+/* 動きを減らす設定: 位置移動を伴うアニメーションをほぼ無効化し、フェードだけ残す */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0.01s;
+    --t-base: 0.12s;
+    --t-slow: 0.12s;
+    --t-spring: 0.12s;
+    --t-pop: 0.12s;
+    --spring: linear;
+    --spring-pop: linear;
+  }
+}

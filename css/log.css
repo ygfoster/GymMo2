@@ -1,0 +1,721 @@
+/* ==========================================================================
+   記録画面（モーダル）・タイマードック・タイマーシート
+   ========================================================================== */
+
+.sheet.modal-screen {
+  background: var(--bg);
+}
+.log-root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sheet-head .l,
+.sheet-head .r {
+  white-space: nowrap;
+}
+.sheet-head .l .nav-btn,
+.sheet-head .r .nav-btn {
+  white-space: nowrap;
+}
+.log-root .sheet-head {
+  grid-template-columns: auto 1fr auto;
+  gap: 4px;
+}
+.log-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+.icon-btn.small {
+  width: 34px;
+  height: 34px;
+}
+.icon-btn.small svg {
+  width: 17px;
+  height: 17px;
+}
+.log-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 2px;
+  border-radius: 10px;
+  font: 600 17px/1 var(--font);
+  white-space: nowrap;
+  transition: opacity var(--t-fast);
+}
+.log-date:active {
+  opacity: 0.45;
+}
+.draft-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 0;
+  margin: 0 0 -14px;
+  overflow: hidden;
+  opacity: 0;
+  color: var(--label-2);
+  font: 500 12px/1 var(--font);
+  transition: height var(--t-base) var(--ease-out), margin var(--t-base) var(--ease-out), opacity var(--t-base);
+}
+.draft-note svg {
+  width: 13px;
+  height: 13px;
+  color: var(--c-train);
+}
+.draft-note.on {
+  height: 18px;
+  margin-bottom: 0;
+  opacity: 1;
+}
+.log-body {
+  padding-top: 6px;
+  padding-bottom: 28px;
+  scroll-padding-bottom: 140px;
+}
+.log-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.log-stack .card {
+  margin: 0;
+}
+
+.vitals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 15px 8px;
+}
+.vt {
+  text-align: center;
+}
+.vt + .vt {
+  border-left: 0.5px solid var(--sep);
+}
+.vt-k {
+  font: 700 11px/1 var(--font);
+}
+.vt-v {
+  margin-top: 7px;
+  font: 700 20px/1.1 var(--font-display);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.vt-v small {
+  font: 600 11px/1 var(--font);
+  color: var(--label-2);
+  margin: 0 1px;
+}
+
+/* 部位チップ（前回からの日数つきの 2 行チップ） */
+.part-picker .chip-row {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+.chip-2l {
+  height: 54px;
+  min-width: 78px;
+  padding: 0 16px;
+  border-radius: 17px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 5px;
+}
+.chip-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: 700 16px/1 var(--font);
+}
+.chip-main .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.chip-sub {
+  font: 500 11px/1 var(--font);
+  opacity: 0.6;
+  margin-left: 16px;
+}
+.part-custom {
+  margin-top: 10px;
+}
+
+/* 種目カード */
+.xlist {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.xcard {
+  position: relative;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 12px 14px 12px;
+}
+.xcard.is-suggesting {
+  z-index: 6;
+}
+.xhead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.xname-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.xname {
+  width: 100%;
+  height: 46px;
+  border: 0;
+  background: transparent;
+  outline: none;
+  padding: 0 4px;
+  font: 700 21px/1.2 var(--font-display);
+  letter-spacing: -0.01em;
+}
+.xname::placeholder {
+  color: var(--label-3);
+  font-weight: 600;
+}
+.suggest {
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  top: calc(100% + 2px);
+  padding: 6px;
+  border-radius: 18px;
+  background: var(--material-thick);
+  -webkit-backdrop-filter: saturate(180%) blur(36px);
+  backdrop-filter: saturate(180%) blur(36px);
+  box-shadow: 0 16px 44px var(--shadow-color), 0 0 0 0.5px var(--sep);
+  animation: menu-in var(--t-spring) var(--spring) both;
+  transform-origin: 20% 0;
+}
+.sg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 46px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font: 500 16px/1 var(--font);
+  transition: background var(--t-fast);
+}
+.sg:active {
+  background: var(--fill);
+}
+.sg i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sg-n {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sg-c {
+  color: var(--label-3);
+  font-size: 13px;
+}
+.xprev {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 2px 0 12px;
+  padding: 10px 10px 10px 12px;
+  border-radius: 14px;
+  background: var(--fill);
+  animation: rise 0.4s var(--ease-out) both;
+}
+.xprev[hidden] {
+  display: none;
+}
+.xprev-l {
+  min-width: 0;
+}
+.xprev-sets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+.xprev .setpill {
+  background: var(--surface);
+  padding: 5px 8px;
+  font-size: 13px;
+}
+
+.sets {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.set-head,
+.set {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px 1fr 12px 1fr 46px;
+  align-items: center;
+  gap: 8px;
+}
+.set-head {
+  padding: 0 0 2px;
+  text-align: center;
+  font: 600 11px/1 var(--font);
+  color: var(--label-3);
+}
+.set-n {
+  text-align: center;
+  font: 700 15px/1 var(--font);
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+.num-in {
+  position: relative;
+  display: block;
+}
+.num-in input {
+  width: 100%;
+  height: 48px;
+  border: 0;
+  outline: none;
+  border-radius: 13px;
+  background: var(--fill);
+  padding: 0 24px 0 8px;
+  text-align: center;
+  font: 700 21px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  transition: background var(--t-fast), color var(--t-base);
+}
+.num-in input:focus {
+  background: var(--fill-2);
+}
+.num-in input::placeholder {
+  color: var(--label-3);
+}
+.num-in .u {
+  position: absolute;
+  right: 9px;
+  bottom: 10px;
+  font: 600 11px/1 var(--font);
+  color: var(--label-3);
+  pointer-events: none;
+}
+.times {
+  text-align: center;
+  color: var(--label-3);
+  font-size: 14px;
+}
+.set.is-done .num-in input {
+  color: var(--label-2);
+}
+
+.set-check {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: transparent;
+  border: 2px solid var(--label-4);
+  transition: background var(--t-base), border-color var(--t-base), color var(--t-base), transform var(--t-pop) var(--spring-pop);
+}
+.set-check svg {
+  width: 22px;
+  height: 22px;
+}
+.set-check:active {
+  transform: scale(0.88);
+}
+.set-check[aria-pressed='true'] {
+  background: var(--c-train);
+  border-color: var(--c-train);
+  color: var(--label-inverse);
+}
+.set-check.burst {
+  animation: check-burst 0.6s var(--spring-pop);
+}
+.set-check.hint {
+  border-color: var(--c-train);
+  animation: hint-pulse 1.7s var(--ease-in-out) infinite;
+}
+@keyframes check-burst {
+  0% { transform: scale(0.7); box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-train) 60%, transparent); }
+  55% { transform: scale(1.14); }
+  100% { transform: scale(1); box-shadow: 0 0 0 16px transparent; }
+}
+@keyframes hint-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-train) 55%, transparent); }
+  55% { box-shadow: 0 0 0 11px transparent; }
+}
+.set-pr {
+  position: absolute;
+  right: 54px;
+  top: -9px;
+  z-index: 2;
+}
+.set.shake {
+  animation: shake 0.42s var(--ease-out);
+}
+.add-set {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  margin: 8px 0 4px;
+  color: var(--label-2);
+  font: 600 15px/1 var(--font);
+  transition: opacity var(--t-fast);
+}
+.add-set:active {
+  opacity: 0.4;
+}
+.add-set svg {
+  width: 16px;
+  height: 16px;
+}
+.memo {
+  margin-top: 4px;
+  font-size: 16px;
+}
+.add-ex {
+  margin-top: 2px;
+}
+.save-big {
+  margin-top: 4px;
+}
+
+/* ----- タイマードック ----- */
+.log-dock {
+  flex-shrink: 0;
+  padding: 10px 12px calc(var(--safe-b) + 12px);
+  background: linear-gradient(to bottom, transparent, var(--bg) 38%);
+  margin-top: -18px;
+  position: relative;
+  z-index: 3;
+}
+.dock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 20px;
+  border-radius: 34px;
+  background: var(--material-thick);
+  -webkit-backdrop-filter: saturate(180%) blur(32px);
+  backdrop-filter: saturate(180%) blur(32px);
+  box-shadow: 0 12px 40px var(--shadow-color), 0 0 0 0.5px var(--sep);
+  transition: background var(--t-slow) var(--ease-out), box-shadow var(--t-slow);
+}
+.dock-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 2px 0;
+  text-align: left;
+}
+.dock-time {
+  font: 700 40px/1 var(--font-display);
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.dock-cap {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 500 12px/1.2 var(--font);
+  color: var(--label-2);
+}
+.dock-reset {
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--fill);
+  transition: transform var(--t-pop) var(--spring-pop), opacity var(--t-fast), background var(--t-fast);
+}
+.dock-reset svg {
+  width: 23px;
+  height: 23px;
+}
+.dock-reset:active {
+  transform: scale(0.88) rotate(-40deg);
+  background: var(--fill-2);
+}
+.dock-play {
+  position: relative;
+  width: 70px;
+  height: 70px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  transition: transform var(--t-pop) var(--spring-pop);
+}
+.dock-play::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: var(--label);
+  transition: background var(--t-base), transform var(--t-pop) var(--spring-pop);
+}
+.dock-play:active {
+  transform: scale(0.9);
+}
+.dock-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.dock-ring .trk {
+  fill: none;
+  stroke: var(--label-4);
+  stroke-width: 3.5;
+}
+.dock-ring .prg {
+  fill: none;
+  stroke: var(--c-train);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.28s linear;
+}
+.dock-icon {
+  position: relative;
+  color: var(--label-inverse);
+}
+.dock-icon .ico {
+  display: block;
+  animation: icon-swap var(--t-pop) var(--spring-pop);
+}
+.dock-icon svg {
+  width: 26px;
+  height: 26px;
+}
+.dock-play .dock-icon .ico svg {
+  transform: translateX(1.5px);
+}
+.dock[data-state='running'] .dock-play .dock-icon .ico svg {
+  transform: none;
+}
+@keyframes icon-swap {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+.dock[data-state='running'] {
+  background: color-mix(in srgb, var(--c-train) 13%, var(--material-thick));
+}
+.dock[data-state='paused'] .dock-time {
+  color: var(--label-2);
+}
+.dock[data-state='done'] {
+  background: color-mix(in srgb, var(--c-train) 26%, var(--material-thick));
+}
+.dock[data-state='done'] .dock-time {
+  animation: done-flash 0.8s ease-in-out infinite alternate;
+}
+.dock[data-state='done'] .dock-cap {
+  color: var(--label);
+  font-weight: 600;
+}
+.dock.bounce {
+  animation: dock-bounce var(--t-pop) var(--spring-pop);
+}
+@keyframes dock-bounce {
+  0% { transform: scale(0.96); }
+  45% { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+@keyframes done-flash {
+  from { opacity: 1; }
+  to { opacity: 0.35; }
+}
+/* 回数を入れたのにタイマーが止まっているとき: 再生ボタンがそっと脈動 */
+.dock.nudge .dock-play {
+  animation: dock-nudge 1.5s var(--ease-in-out) infinite;
+}
+.dock.nudge .dock-ring .trk {
+  stroke: var(--c-train);
+}
+@keyframes dock-nudge {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-train) 55%, transparent); }
+  50% { transform: scale(1.07); box-shadow: 0 0 0 12px transparent; }
+}
+
+/* キーボード表示中はコンパクトに */
+.log-root.kbd .log-dock {
+  padding-bottom: 8px;
+  margin-top: -8px;
+}
+.log-root.kbd .dock {
+  padding: 6px 10px 6px 16px;
+}
+.log-root.kbd .dock-time {
+  font-size: 28px;
+}
+.log-root.kbd .dock-cap {
+  display: none;
+}
+.log-root.kbd .dock-play {
+  width: 58px;
+  height: 58px;
+}
+.log-root.kbd .dock-reset {
+  width: 46px;
+  height: 46px;
+}
+
+/* ミニプレイヤー（ログ以外の画面） */
+.dock-slot {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--tabbar-h) + var(--safe-b) + 10px);
+  z-index: 25;
+  opacity: 0;
+  transform: translateY(26px) scale(0.95);
+  pointer-events: none;
+  transition: opacity var(--t-base) var(--ease-out), transform var(--t-spring) var(--spring);
+}
+.dock-slot.show {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.shell.hide-tabbar .dock-slot {
+  opacity: 0;
+  pointer-events: none;
+}
+.dock.compact {
+  padding: 8px 10px 8px 18px;
+  border-radius: 30px;
+}
+.dock.compact .dock-time {
+  font-size: 28px;
+}
+.dock.compact .dock-reset {
+  width: 46px;
+  height: 46px;
+}
+.dock.compact .dock-reset svg {
+  width: 20px;
+  height: 20px;
+}
+.dock.compact .dock-play {
+  width: 58px;
+  height: 58px;
+}
+.dock.compact .dock-play::before {
+  inset: 7px;
+}
+.dock.compact .dock-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ----- タイマーシート ----- */
+.timer-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding-top: 6px;
+}
+.timer-hero {
+  position: relative;
+  width: 252px;
+  height: 252px;
+}
+.timer-ring {
+  width: 100%;
+  height: 100%;
+}
+.timer-ring .trk {
+  fill: none;
+  stroke: var(--fill-2);
+  stroke-width: 14;
+}
+.timer-ring .prg {
+  fill: none;
+  stroke: var(--c-train);
+  stroke-width: 14;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.28s linear;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c-train) 40%, transparent));
+}
+.timer-sheet[data-state='paused'] .prg {
+  stroke: var(--label-3);
+  filter: none;
+}
+.timer-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.timer-big {
+  font: 700 64px/1 var(--font-display);
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+}
+.timer-adjust {
+  display: flex;
+  gap: 12px;
+}
+.timer-presets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.timer-presets .chip {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.timer-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 12px;
+}
+.timer-total {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.timer-hint {
+  text-align: center;
+  padding: 0 16px;
+}

@@ -1,0 +1,11 @@
+{
+  "name": "gymmo2",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GymMo2 - Apple風の筋トレ記録PWA",
+  "scripts": {
+    "test": "node --test tests/",
+    "serve": "python3 scripts/dev-server.py 5173"
+  }
+}
