@@ -18,7 +18,7 @@ const mark = `<svg class="welcome-mark" viewBox="0 0 512 512" aria-hidden="true"
 </svg>`;
 
 
-export function showWelcome({ shell, onDone }) {
+export function showWelcome({ shell, onDone, notice = '' }) {
   const live = !!CONFIG.apiUrl;
   const el = createEl(html`
     <div class="welcome" role="main">
@@ -32,7 +32,7 @@ export function showWelcome({ shell, onDone }) {
       </div>
       <form class="welcome-form rise" style="--i:6" autocomplete="off">
         ${live ? html`<input class="field" type="password" name="passcode" placeholder="パスコード" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="パスコード" />
-          <div class="welcome-err" role="alert"></div>
+          <div class="welcome-err" role="alert">${notice}</div>
           <button class="btn btn-primary btn-block" type="submit"><span class="lbl">接続する</span></button>
           <button class="btn btn-tinted btn-block" type="button" data-demo>デモデータで試す</button>`
         : html`<button class="btn btn-primary btn-block" type="button" data-demo>デモデータで試す</button>

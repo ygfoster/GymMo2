@@ -74,17 +74,17 @@ function watchSync() {
   });
 }
 
+/** 例: https://…/#/connect?k=パスコード （ワンタップ接続用リンク）。読み取ったら URL から即座に消す。 */
 async function handleConnectLink() {
-  // 例: https://…/#/connect?k=パスコード （ワンタップ接続用リンク）。読み取ったら URL から即座に消す。
   const m = /^#\/connect\?k=(.+)$/.exec(location.hash);
-  if (!m) return false;
+  if (!m) return { used: false };
   const key = decodeURIComponent(m[1]);
   history.replaceState(null, '', location.pathname + location.search + '#/today');
   try {
     await connect(key);
-    return true;
-  } catch {
-    return false;
+    return { used: true, ok: true };
+  } catch (e) {
+    return { used: true, ok: false, error: e.kind === 'auth' ? 'このリンクのパスコードは無効です。' : `リンクから接続できませんでした。${e.message || ''}` };
   }
 }
 
@@ -93,7 +93,7 @@ async function start() {
   timer.init();
   initStore();
   defineRoutes();
-  const viaLink = await handleConnectLink();
+  const link = await handleConnectLink();
 
   const boot = () => {
     mountChrome();
@@ -102,9 +102,9 @@ async function start() {
   };
   if (state.mode) {
     boot();
-    if (viaLink) toast('接続しました');
+    if (link.ok) toast('接続しました');
   } else {
-    showWelcome({ shell, onDone: boot });
+    showWelcome({ shell, onDone: boot, notice: link.error || '' });
   }
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

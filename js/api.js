@@ -37,7 +37,7 @@ export function createLiveApi({ url, getToken }) {
     try {
       json = await res.json();
     } catch {
-      throw new ApiError('サーバーの応答を解析できませんでした', 'server');
+      throw new ApiError('サーバーの応答を解析できませんでした（Apps Script の承認が済んでいない可能性があります）', 'server');
     }
     if (!json || json.ok === false) {
       throw new ApiError(json?.error || 'サーバーエラー', json?.code === 'AUTH' ? 'auth' : 'server');
