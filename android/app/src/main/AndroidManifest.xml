@@ -31,8 +31,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- ワンタップ接続リンク（https://ygfoster.github.io/GymMo2/#/connect?k=…）をアプリで開く -->
-            <intent-filter>
+            <!-- ワンタップ接続リンク（https://ygfoster.github.io/GymMo2/#/connect?k=…）をアプリで開く。
+                 https://ygfoster.github.io/.well-known/assetlinks.json に署名鍵の指紋を登録済みなので、autoVerify で認証され、ブラウザではなくアプリで直接開く -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />

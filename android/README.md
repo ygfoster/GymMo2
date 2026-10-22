@@ -24,6 +24,14 @@ Web（js/timer.js）  ──timerSync(JSON)──▶  NativeBridge ─▶ TimerN
 - アプリを見ているときに休憩が終わった場合は、通知を出さず Web 側が音と振動で知らせます。バックグラウンドなら通知（音・振動つき）を出します。
 - 戻る操作は Web 側のルーターに任せます（`window.__gymmoBack`）。シートやメニューが開いていれば閉じ、タブの先頭ならアプリを背面へ送ります。
 
+## 接続リンク（App Links）
+
+`https://ygfoster.github.io/GymMo2/#/connect?k=…` を端末で開くと、ブラウザではなく**このアプリが直接開き**、パスコードを入力せずに接続できます（`backend` の接続リンク/QR 用）。
+
+- アプリ側: `AndroidManifest.xml` の VIEW フィルターに `android:autoVerify="true"`。
+- サイト側: `https://ygfoster.github.io/.well-known/assetlinks.json`（リポジトリ `ygfoster/ygfoster.github.io`）に、このアプリのパッケージ名と**署名鍵の SHA-256 指紋**を登録済み。署名鍵を作り直したときは、この指紋も更新する。
+- 確認: `adb shell pm get-app-links io.github.ygfoster.gymmo2` で `ygfoster.github.io: verified` になっていること。
+
 ## ビルド
 
 前提: JDK 17、Android SDK（platform 36 / build-tools）。`local.properties` に `sdk.dir` を書きます（git 管理外）。
