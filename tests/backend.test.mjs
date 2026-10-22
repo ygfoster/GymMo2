@@ -92,3 +92,13 @@ test('safeEquals_: 一致・不一致・型の揺れ', () => {
   assert.equal(L.safeEquals_(undefined, 'abc'), false);
   assert.equal(L.safeEquals_('', ''), true);
 });
+
+test('asTextCell_: 数式・数値・日付に誤変換されないよう先頭にアポストロフィを付ける（空は空のまま）', () => {
+  assert.equal(L.asTextCell_('=1+1'), "'=1+1");
+  assert.equal(L.asTextCell_('+3'), "'+3");
+  assert.equal(L.asTextCell_('1/2'), "'1/2");
+  assert.equal(L.asTextCell_("'quoted"), "''quoted");
+  assert.equal(L.asTextCell_(''), '');
+  assert.equal(L.asTextCell_(null), '');
+  assert.equal(L.asTextCell_(12), "'12");
+});

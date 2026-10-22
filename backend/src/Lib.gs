@@ -137,6 +137,16 @@ function sanitizeTrainingRow_(row) {
   return { part: cut(row.part, LIMITS.part).trim(), exercise: exercise || '種目不明', details: details, memo: memo };
 }
 
+/**
+ * シートに「文字列として」書き込むための値。
+ * setValues は '=' で始まる文字列を数式として評価し、'1/2' を日付に、'+3' を数値に変換してしまう。
+ * 先頭にアポストロフィを付けると、Sheets は常にテキストとして保存する（アポストロフィ自体は値に含まれない）。
+ */
+function asTextCell_(v) {
+  var s = String(v === undefined || v === null ? '' : v);
+  return s === '' ? '' : "'" + s;
+}
+
 /** 連続する行番号をまとめて [{start, count}] にする（降順で返し、下から削除できるようにする） */
 function groupConsecutive_(rowNumbers) {
   var sorted = rowNumbers.slice().sort(function (a, b) { return a - b; });
@@ -165,6 +175,6 @@ if (typeof module !== 'undefined' && module.exports) {
     nextIsoDate_: nextIsoDate_, parseNum_: parseNum_, isValidSleep_: isValidSleep_, isValidNumberMetric_: isValidNumberMetric_,
     hasAnyValidHealthMetric_: hasAnyValidHealthMetric_, formatGrams_: formatGrams_, formatDiff_: formatDiff_,
     minutesToSleepText_: minutesToSleepText_, mergeHealthRecords_: mergeHealthRecords_, toSheetRow_: toSheetRow_,
-    sanitizeTrainingRow_: sanitizeTrainingRow_, groupConsecutive_: groupConsecutive_, safeEquals_: safeEquals_,
+    sanitizeTrainingRow_: sanitizeTrainingRow_, asTextCell_: asTextCell_, groupConsecutive_: groupConsecutive_, safeEquals_: safeEquals_,
   };
 }

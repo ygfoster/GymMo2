@@ -194,9 +194,11 @@ function handleSaveDay_(dateIso, rows) {
     var need = start + clean.length - 1;
     if (need > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), need - sheet.getMaxRows());
     var range = sheet.getRange(start, 1, clean.length, 5);
-    // 文字列として書き込む（'=' や '+' で始まるメモが数式として解釈されるのを防ぎ、日付表記も崩さない）
-    range.setNumberFormat('@');
-    range.setValues(clean.map(function (r) { return [key, r.part, r.exercise, r.details, r.memo]; }));
+    // すべて文字列として書き込む（'=' で始まるメモが数式として評価される、'1/2' が日付になる、等を防ぐ）。
+    // ※ setNumberFormat('@') だけでは setValues の数式解釈を防げないため、先頭にアポストロフィを付ける。
+    range.setValues(clean.map(function (r) {
+      return [asTextCell_(key), asTextCell_(r.part), asTextCell_(r.exercise), asTextCell_(r.details), asTextCell_(r.memo)];
+    }));
   }
   return { ok: true, count: clean.length };
 }
