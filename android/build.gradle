@@ -1,0 +1,4 @@
+// GymMo2 Android アプリ（WebView + ネイティブの休憩タイマー通知）
+plugins {
+    id 'com.android.application' version '8.9.1' apply false
+}

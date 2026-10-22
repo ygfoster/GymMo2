@@ -4,6 +4,7 @@ import { safeStorage } from './lib/storage.js';
 import { haptic } from './lib/haptics.js';
 import { chime } from './lib/sound.js';
 import { state as appState } from './store.js';
+import { native } from './native.js';
 
 const KEY = `${CONFIG.keyPrefix}session.v1`;
 const STALE_MS = 6 * 3600 * 1000;
@@ -17,6 +18,7 @@ const blank = () => ({
   restEndsAt: null,
   restRemaining: DEFAULT_REST,
   status: 'idle', // idle | running | paused | done
+  updatedAt: 0, // 最後に状態を変えた時刻（Web とネイティブで新しいほうを採用するため）
 });
 
 let s = blank();
@@ -46,8 +48,26 @@ function persist() {
   else safeStorage.write(KEY, s);
 }
 
-function emit() {
+/** ネイティブ（通知・アラーム）と共有する形 */
+function nativeState() {
+  return {
+    status: s.status,
+    endsAt: s.status === 'running' ? s.restEndsAt : 0,
+    remainingSec: s.status === 'running' ? 0 : s.restRemaining,
+    totalSec: s.restTotal,
+    label: s.part || '',
+    logDate: s.logDate || '',
+    startedAt: s.startedAt || 0,
+    updatedAt: s.updatedAt,
+    notify: !!appState.settings.timer.notify,
+  };
+}
+
+/** @param {{external?:boolean}} opts external: ネイティブ側から取り込んだ変更（送り返さない） */
+function emit({ external = false } = {}) {
+  if (!external) s.updatedAt = Date.now();
   persist();
+  if (!external && native.available) native.syncTimer(nativeState());
   subs.forEach((fn) => {
     try {
       fn(snapshot());
@@ -99,14 +119,23 @@ function tick() {
 }
 
 function finishRest() {
+  // 画面が見えていて、終了時刻に近いときだけ音と振動で知らせる。
+  // 長く離れていて戻ってきたときは、すでに通知で知らせ済みなので鳴らさない。
+  const late = s.restEndsAt ? now() - s.restEndsAt : 0;
+  const feedback = late < 4000 && document.visibilityState === 'visible';
   s.status = 'done';
   s.restEndsAt = null;
   s.restRemaining = 0;
   releaseWakeLock();
-  haptic.timerEnd();
-  chime('rest-end');
-  notifyEnd();
-  emit();
+  if (feedback) {
+    haptic.timerEnd();
+    chime('rest-end');
+  } else if (!native.available) {
+    notifyEnd();
+  }
+  // アプリ版で画面が見えていないときは、終了の合図（通知）をネイティブのアラームに任せる。
+  // ここで「done」を送ってしまうとアラームが取り消され、終了通知が出なくなる。
+  emit({ external: native.available && document.visibilityState !== 'visible' });
   clearTimeout(doneTimer);
   doneTimer = setTimeout(() => {
     if (s.status === 'done') {
@@ -118,7 +147,7 @@ function finishRest() {
 }
 
 async function notifyEnd() {
-  if (document.visibilityState === 'visible') return;
+  if (native.available || document.visibilityState === 'visible') return;
   if (!appState.settings.timer.notify || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   try {
     const reg = await navigator.serviceWorker?.getRegistration();
@@ -150,10 +179,45 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+/** ネイティブ側（通知のボタン・アラーム）で変わった状態を取り込む。新しいほうを採用する。 */
+function applyNativeState(ns) {
+  if (!ns || !ns.status || ns.updatedAt < s.updatedAt) return;
+  // アプリが閉じている間に終わった休憩は、すでに通知で知らせ済み。戻ってきたときに「終了」を再演せず、静かに待機へ戻す。
+  if (ns.status === 'done' && now() - ns.updatedAt > 15_000) {
+    ns = { ...ns, status: 'idle', remainingSec: ns.totalSec, endsAt: 0 };
+  }
+  if (ns.status === 'done' && s.status === 'running') {
+    finishRest(); // 見えているときは音と振動で知らせる
+    return;
+  }
+  clearTimeout(doneTimer);
+  s.status = ns.status;
+  s.restEndsAt = ns.status === 'running' ? ns.endsAt : null;
+  s.restRemaining = ns.status === 'running' ? Math.max(0, (ns.endsAt - now()) / 1000) : ns.remainingSec;
+  s.restTotal = Math.max(1, ns.totalSec || s.restTotal);
+  s.updatedAt = ns.updatedAt;
+  if (ns.status === 'running') acquireWakeLock();
+  else releaseWakeLock();
+  if (ns.status === 'done') {
+    doneTimer = setTimeout(() => {
+      if (s.status === 'done') {
+        s.status = 'idle';
+        s.restRemaining = s.restTotal;
+        emit();
+      }
+    }, 9000);
+  }
+  ensureTick();
+  emit({ external: true });
+}
+
 /* ---------- 公開 API ---------- */
 export const timer = {
   init() {
     load();
+    // ネイティブ側（通知のボタン）で変わっていた状態を先に取り込む
+    window.__gymmoNativePoll = () => native.pollEvents().forEach(applyNativeState);
+    if (native.available) window.__gymmoNativePoll();
     ensureTick();
     if (s.status === 'running') acquireWakeLock();
     emit();
@@ -200,6 +264,7 @@ export const timer = {
     s.status = 'running';
     nudgeUntil = 0;
     haptic.impact();
+    if (native.available && appState.settings.timer.notify && !native.notificationsAllowed()) native.requestNotifications();
     acquireWakeLock();
     ensureTick();
     emit();

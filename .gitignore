@@ -6,3 +6,10 @@ backend/src/.clasp.json
 backend/.clasprc.json
 backend/node_modules/
 .secrets/
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+*.apk
+*.aab

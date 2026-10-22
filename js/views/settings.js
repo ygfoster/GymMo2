@@ -10,6 +10,7 @@ import { formatSleep, trainingToRows } from '../lib/parse.js';
 import { fmtClock, fmtInt } from '../lib/format.js';
 import { haptic } from '../lib/haptics.js';
 import { toSheetDate } from '../lib/dates.js';
+import { native } from '../native.js';
 
 const PALETTE = ['#FF453A', '#FF9F0A', '#FFD60A', '#30D158', '#63E6E2', '#0A84FF', '#5E5CE6', '#BF5AF2', '#FF375F', '#8E8E93'];
 
@@ -20,6 +21,10 @@ function csvEscape(v) {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 function download(filename, text) {
+  if (native.available) {
+    native.saveFile(filename, 'text/csv', '\ufeff' + text);
+    return;
+  }
   const blob = new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -95,7 +100,7 @@ export function createSettingsView() {
         <div class="group">
           ${toggle('autoStart', 'セット完了で自動開始', s.timer.autoStart, icons.stopwatch, '#FF2D55', '✓を押すとタイマーが始まります')}
           ${toggle('nudge', '入力後にそっと知らせる', s.timer.nudge, icons.sparkle, '#FF9500', '✓がやさしく脈動して知らせます')}
-          ${toggle('notify', '休憩終了を通知', s.timer.notify, icons.bell, '#007AFF', '画面を閉じているときに通知します')}
+          ${toggle('notify', native.available ? '通知欄にタイマーを表示' : '休憩終了を通知', s.timer.notify, icons.bell, '#007AFF', native.available ? 'カウントダウンと終了の合図を通知で' : '画面を閉じているときに通知します')}
           <button class="row has-icon" data-open="rest">${iconTile('#30B0C7', icons.history)}
             <div class="row-body"><div class="row-title">部位ごとの休憩時間</div></div>
             <div class="row-value">${fmtClock(s.timer.presets['胸'])}〜</div>${icons.rowChevron}
@@ -142,7 +147,7 @@ export function createSettingsView() {
         </div>
       </div>
 
-      <p class="foot">${CONFIG.appName} v${CONFIG.version}<br>元の GymMo とは独立して動作します。</p>`);
+      <p class="foot">${CONFIG.appName} v${CONFIG.version}${native.available ? `（Android アプリ ${native.info()?.version ?? ''}）` : ''}<br>元の GymMo とは独立して動作します。</p>`);
     if (rendered) morph(content, markup);
     else content.innerHTML = markup;
     rendered = true;
@@ -225,7 +230,10 @@ export function createSettingsView() {
       const k = tog.dataset.toggle;
       const next = !(k === 'haptics' || k === 'sound' ? state.settings[k] : state.settings.timer[k]);
       if (k === 'haptics' || k === 'sound') updateSettings({ [k]: next });
-      else if (k === 'notify' && next) {
+      else if (k === 'notify' && next && native.available) {
+        native.requestNotifications();
+        updateSettings({ timer: { notify: true } });
+      } else if (k === 'notify' && next) {
         if (typeof Notification === 'undefined') return toast('この端末は通知に対応していません', { kind: 'error' });
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') return toast('通知が許可されませんでした', { kind: 'error' });

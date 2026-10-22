@@ -1,6 +1,6 @@
 // アプリの起動: ストア初期化 → シェル構築 → ルート定義 → 画面表示。
 import { state, on, init as initStore, connect } from './store.js';
-import { initOverlay, toast } from './ui/overlay.js';
+import { initOverlay, toast, hasOpenLayer } from './ui/overlay.js';
 import { router, defineRoute } from './router.js';
 import { createTabbar } from './ui/tabbar.js';
 import { createDock } from './ui/dock.js';
@@ -13,6 +13,7 @@ import { createExerciseView } from './views/exercise.js';
 import { createLogView } from './views/log.js';
 import { showWelcome } from './views/welcome.js';
 import { todayKey } from './lib/dates.js';
+import { native } from './native.js';
 import { html, createEl } from './lib/html.js';
 
 const shell = document.getElementById('shell');
@@ -89,9 +90,26 @@ async function handleConnectLink() {
 }
 
 async function start() {
+  if (native.available) document.documentElement.dataset.native = '1';
+  // ネイティブ（通知タップなど）から画面遷移させるための入口
+  window.__gymmoNavigate = (path) => router.navigate(path);
+  // ネイティブの「戻る」: シートやメニューが開いていれば閉じ、画面が積まれていれば 1 つ戻る。
+  // タブの先頭なら false を返し、ネイティブ側がアプリを閉じる（バックグラウンドへ）。
+  window.__gymmoBack = () => {
+    if (hasOpenLayer()) {
+      history.back();
+      return true;
+    }
+    const info = router.info;
+    if (info.depth > 1 || info.modal) {
+      router.back();
+      return true;
+    }
+    return false;
+  };
   initOverlay(shell, overlayRoot);
+  initStore(); // 設定を先に読み込む（タイマーがネイティブへ同期するときに通知設定を参照する）
   timer.init();
-  initStore();
   defineRoutes();
   const link = await handleConnectLink();
 

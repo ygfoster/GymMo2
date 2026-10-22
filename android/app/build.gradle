@@ -1,0 +1,63 @@
+plugins {
+    id 'com.android.application'
+}
+
+// 署名情報は git 管理外の .secrets/keystore.properties から読む（無ければ debug 署名でビルドされる）
+def keystorePropsFile = rootProject.file('../.secrets/keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
+android {
+    namespace 'io.github.ygfoster.gymmo2'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'io.github.ygfoster.gymmo2'
+        minSdk 29
+        targetSdk 36
+        versionCode 1
+        versionName '1.0.0'
+        // Web アプリの公開 URL（アプリはここを読み込む。Web 側の更新はアプリの入れ直し不要）
+        buildConfigField 'String', 'START_URL', '"https://ygfoster.github.io/GymMo2/"'
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile rootProject.file('../.secrets/' + keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (keystorePropsFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            // debug ビルドは別アプリとして並べて入れられる
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.15.0'
+}

@@ -20,6 +20,7 @@ const SHELL = [
   './js/config.js',
   './js/api.js',
   './js/store.js',
+  './js/native.js',
   './js/router.js',
   './js/timer.js',
   './js/demo-data.js',

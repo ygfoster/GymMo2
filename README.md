@@ -14,7 +14,12 @@
 | 履歴 | 月カレンダー（部位ごとの色ドット）、今週/今月/累計、月ごとのワークアウト一覧 |
 | ＋ | 記録シート。部位チップ → 種目（サジェスト・前回の記録）→ セット入力 → ✓ で休憩タイマー自動開始 |
 | 分析 | 期間サマリー、部位別週間セット数、種目一覧、睡眠・カロリー収支・PFC、睡眠と重量の関係 |
-| 設定 | 外観、触覚・効果音、休憩タイマー、目標値、CSV 書き出し、接続 |
+| 設定 | 外観、触覚・効果音、休憩タイマー、目標値（既定: タンパク質 140g・睡眠 7 時間）、CSV 書き出し、接続 |
+
+## Android アプリ（通知つきの休憩タイマー）
+
+ブラウザ版では、画面を閉じると休憩終了の検知が遅れ、ほかのアプリを使っている間は残り時間も見えません。
+`android/` の Android アプリ版は、休憩タイマーを OS の**通知（カウントダウン表示）と正確なアラーム**で動かすので、画面オフ・アプリ終了中・他のアプリの使用中でも、残り時間の確認と終了の合図ができます。通知から一時停止・+30 秒・リセットも操作できます。詳しくは [android/README.md](android/README.md)。
 
 ## 開発
 
@@ -36,6 +41,7 @@ js/
   lib/    dates parse metrics format html dom storage haptics sound   ← 純粋ロジック（テスト対象）
   ui/     overlay（シート/メニュー/ダイアログ/HUD/トースト） charts tabbar dock calendar ptr icons
   views/  day history analyze settings log exercise welcome
+android/  Android アプリ（WebView + ネイティブの休憩タイマー通知）
 backend/  Apps Script（clasp 管理）。GymMo2 専用のシートに読み書きし、Google ヘルス API を同期する
 tests/    node --test
 docs/     DESIGN.md（設計判断・元アプリとの比較）

@@ -6,6 +6,7 @@ import { rowsToTraining, rowsToHealth, trainingToRows, mergeHealth, normalizeHea
 import { buildExerciseIndex } from './lib/metrics.js';
 import { setHapticsEnabled } from './lib/haptics.js';
 import { setSoundEnabled } from './lib/sound.js';
+import { native } from './native.js';
 
 const K = (n) => CONFIG.keyPrefix + n;
 const KEYS = {
@@ -23,11 +24,11 @@ export const DEFAULT_SETTINGS = {
   theme: 'auto', // auto | light | dark
   haptics: true,
   sound: true,
-  goals: { sleepMin: 420, protein: 120, kcal: null }, // kcal: null＝消費カロリーを目安にする
+  goals: { sleepMin: 420, protein: 140, kcal: null }, // kcal: null＝消費カロリーを目安にする
   timer: {
     autoStart: true,
     nudge: true,
-    notify: false,
+    notify: native.available, // アプリ版は通知が主役なので既定でオン（ブラウザ版は許可が要るのでオフ）
     presets: { 胸: 180, 背中: 180, 脚: 180, 肩: 90, 腕: 120, その他: 120 },
   },
   partColors: { 胸: '#FF453A', 背中: '#0A84FF', 脚: '#30D158', 肩: '#FF9F0A', 腕: '#BF5AF2', その他: '#8E8E93' },
@@ -115,6 +116,10 @@ export function applySettings() {
   if (meta) meta.setAttribute('content', effectiveScheme() === 'dark' ? '#000000' : '#F2F2F7');
   setHapticsEnabled(s.haptics);
   setSoundEnabled(s.sound);
+  if (native.available) {
+    const dark = effectiveScheme() === 'dark';
+    native.setTheme(dark, dark ? '#000000' : '#F2F2F7');
+  }
   for (const [part, color] of Object.entries(s.partColors)) root.style.setProperty(`--part-${PART_ORDER.indexOf(part)}`, color);
 }
 
