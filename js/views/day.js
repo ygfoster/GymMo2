@@ -11,7 +11,7 @@ import {
 import { dayStats, healthView, sessionOn, mean } from '../lib/metrics.js';
 import { fmtInt, fmtSigned, fmtNum, fmtPct } from '../lib/format.js';
 import { formatSleep } from '../lib/parse.js';
-import { ringsSvg, animateRings, sparkline } from '../ui/charts.js';
+import { sparkline } from '../ui/charts.js';
 import { openMenu, confirmDialog, showHud, toast } from '../ui/overlay.js';
 import { openDatePicker } from '../ui/datepicker.js';
 import { haptic } from '../lib/haptics.js';
@@ -76,38 +76,63 @@ export function createDayView({ date, root = false }) {
   };
 
   /* ---------- 各カード ---------- */
-  const ringsCard = (hv, key) => {
+  /* 今日のサマリー: 3 つの指標を横棒で（目標線つき）。円より値が読み取りやすく、マイナスの収支もそのまま表せる */
+  const pct = (v) => `${(Math.max(0, Math.min(1, v)) * 100).toFixed(2)}%`;
+  /** 0 から目標へ伸びる棒。目標を超えたら棒の全長＝実績にして、目標の位置に線を引く */
+  const goalBar = (value, goal, color) => {
+    if (value == null || !goal) return html`<div class="sm-track"></div>`;
+    const scale = Math.max(goal, value);
+    const tick = value > goal ? html`<span class="sm-tick" style="left:${pct(goal / scale)}"></span>` : '';
+    return html`<div class="sm-track"><i class="sm-fill" style="--c:${color};left:0;--w:${pct(value / scale)}"></i>${tick}</div>`;
+  };
+  /** 収支の棒: 中央が 0。左へ伸びると消費が多い（マイナス）、右へ伸びると摂取が多い（プラス） */
+  const balanceBar = (balance, target) => {
+    if (balance == null) return html`<div class="sm-track"><span class="sm-zero"></span></div>`;
+    const range = Math.max(800, Math.abs(balance) * 1.15, Math.abs(target ?? 0) * 1.15);
+    const half = (v) => (Math.min(Math.abs(v), range) / range) * 0.5;
+    const fill = balance < 0
+      ? html`<i class="sm-fill neg" style="--c:var(--c-move);right:50%;--w:${pct(half(balance))}"></i>`
+      : html`<i class="sm-fill" style="--c:var(--c-move);left:50%;--w:${pct(half(balance))}"></i>`;
+    // 摂取カロリーの目標があれば、その日の目標収支（目標摂取 − 消費）の位置に線を引く
+    const goalTick = target != null && target !== 0 ? html`<span class="sm-tick" style="left:${pct(0.5 + Math.sign(target) * half(target))}"></span>` : '';
+    return html`<div class="sm-track">${fill}<span class="sm-zero"></span>${goalTick}</div>`;
+  };
+  const fmtDur = (min) => {
+    const h = Math.floor(min / 60);
+    const m = Math.round(min % 60);
+    return h ? `${h}時間${m ? `${m}分` : ''}` : `${m}分`;
+  };
+
+  const summaryCard = (hv) => {
     const g = state.settings.goals;
-    const kcalTarget = g.kcal || hv.burned;
-    const calV = hv.hasIntake && kcalTarget ? hv.intake / kcalTarget : 0;
-    const pV = hv.protein != null && g.protein ? hv.protein / g.protein : 0;
-    const sV = hv.sleepMin != null && g.sleepMin ? hv.sleepMin / g.sleepMin : 0;
     const notes = [];
     if (!hv.hasAny) notes.push('この日のヘルスデータはまだありません。');
     else {
       if (!hv.hasIntake) notes.push('食事が記録されていないため、カロリー収支は表示していません。');
       if (hv.provisional) notes.push('今日の値は暫定です。夜にかけて更新されます。');
     }
+    const target = g.kcal && hv.burned != null ? g.kcal - hv.burned : null;
     const kcalSub = hv.hasIntake ? `摂取 ${fmtInt(hv.intake)} ・ 消費 ${fmtInt(hv.burned)}` : hv.burned != null ? `消費 ${fmtInt(hv.burned)}` : '';
+    const kcalSide = hv.balance == null ? '' : hv.balance < 0 ? `消費が ${fmtInt(-hv.balance)} 多い` : hv.balance > 0 ? `摂取が ${fmtInt(hv.balance)} 多い` : '収支ゼロ';
+    const pSide = hv.protein == null ? `目標 ${fmtInt(g.protein)} g` : hv.protein >= g.protein ? `目標 ${fmtInt(g.protein)} gを達成（+${fmtInt(hv.protein - g.protein)} g）` : `あと ${fmtInt(g.protein - hv.protein)} g`;
+    const sSide = hv.sleepMin == null ? `目標 ${formatSleep(g.sleepMin)}` : hv.sleepMin >= g.sleepMin ? `目標 ${formatSleep(g.sleepMin)}を達成（+${fmtDur(hv.sleepMin - g.sleepMin)}）` : `目標まで あと ${fmtDur(g.sleepMin - hv.sleepMin)}`;
+    const none = html`<span class="faint">--</span>`;
     return html`
-      <section class="card rings-card rise" style="--i:1">
-        <div class="rings-wrap">${ringsSvg({ rings: [{ value: calV, color: 'var(--c-move)' }, { value: pV, color: 'var(--c-protein)' }, { value: sV, color: 'var(--c-sleep)' }] })}</div>
-        <div class="legend">
-          <div class="lg" style="--c:var(--c-move)">
-            <div class="lg-k">カロリー収支</div>
-            <div class="lg-v">${hv.balance != null ? html`${fmtSigned(hv.balance)}<small>kcal</small>` : html`<span class="faint">--</span>`}</div>
-            ${kcalSub ? html`<div class="lg-s">${kcalSub}</div>` : ''}
-          </div>
-          <div class="lg" style="--c:var(--c-protein)">
-            <div class="lg-k">タンパク質</div>
-            <div class="lg-v">${hv.protein != null ? html`${fmtInt(hv.protein)}<small>g</small>` : html`<span class="faint">--</span>`}</div>
-            <div class="lg-s">目標 ${fmtInt(g.protein)} g</div>
-          </div>
-          <div class="lg" style="--c:var(--c-sleep)">
-            <div class="lg-k">睡眠</div>
-            <div class="lg-v">${hv.sleepMin != null ? sleepParts(hv.sleepMin) : html`<span class="faint">--</span>`}</div>
-            <div class="lg-s">目標 ${formatSleep(g.sleepMin)}</div>
-          </div>
+      <section class="card summary-card rise" style="--i:1">
+        <div class="sm-row">
+          <div class="sm-head"><span class="sm-k" style="color:var(--c-move)">カロリー収支</span><span class="sm-v">${hv.balance != null ? html`${fmtSigned(hv.balance)}<small>kcal</small>` : none}</span></div>
+          ${balanceBar(hv.balance, target)}
+          <div class="sm-foot"><span>${kcalSub}</span><span>${kcalSide}${target != null ? ` ・ 目標 ${fmtSigned(target)}` : ''}</span></div>
+        </div>
+        <div class="sm-row">
+          <div class="sm-head"><span class="sm-k" style="color:var(--c-protein)">タンパク質</span><span class="sm-v">${hv.protein != null ? html`${fmtInt(hv.protein)}<small>/ ${fmtInt(g.protein)} g</small>` : none}</span></div>
+          ${goalBar(hv.protein, g.protein, 'var(--c-protein)')}
+          <div class="sm-foot"><span></span><span>${pSide}</span></div>
+        </div>
+        <div class="sm-row">
+          <div class="sm-head"><span class="sm-k" style="color:var(--c-sleep)">睡眠</span><span class="sm-v">${hv.sleepMin != null ? sleepParts(hv.sleepMin) : none}</span></div>
+          ${goalBar(hv.sleepMin, g.sleepMin, 'var(--c-sleep)')}
+          <div class="sm-foot"><span></span><span>${sSide}</span></div>
         </div>
         ${notes.length ? html`<p class="card-note">${notes.join(' ')}</p>` : ''}
       </section>`;
@@ -257,7 +282,7 @@ export function createDayView({ date, root = false }) {
     const cta = hasDraft(key) ? '下書きを続ける' : day?.exercises.length ? 'この日の記録を編集' : 'ワークアウトを記録';
     content.innerHTML = String(html`
       <div class="day-stack ${animate ? `slide-${slide}` : ''}">
-        ${ringsCard(hv, key)}
+        ${summaryCard(hv)}
         ${trainingCard(key, day)}
         ${nutritionCard(hv)}
         ${sleepCard(hv)}
@@ -266,13 +291,11 @@ export function createDayView({ date, root = false }) {
       </div>`);
     settleRise(content, !renderedOnce);
     renderedOnce = true;
-    // 同じ日のリングは再描画してもアニメーションをやり直さない
+    // サマリーの棒は、日付が変わったときだけ伸びるアニメーションをする（同じ日の再描画では最初から伸びた状態）
     const stamp = `${key}`;
-    const rc = content.querySelector('.rings-wrap');
-    if (rc) {
-      if (ringsPlayed !== stamp) animateRings(rc);
-      else rc.querySelectorAll('.ring-prog').forEach((a) => a.setAttribute('stroke-dashoffset', a.dataset.offset));
-    }
+    const fills = content.querySelectorAll('.sm-fill');
+    if (ringsPlayed === stamp) fills.forEach((f) => f.classList.add('instant', 'on'));
+    else requestAnimationFrame(() => requestAnimationFrame(() => fills.forEach((f) => f.classList.add('on'))));
     ringsPlayed = stamp;
     requestAnimationFrame(() => content.querySelectorAll('.pfc-bar i, .goal-bar i').forEach((i) => i.classList.add('on')));
   };

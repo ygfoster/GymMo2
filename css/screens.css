@@ -160,66 +160,100 @@
   border-radius: 50%;
 }
 
-.rings-card {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 20px 18px;
-}
-.rings-wrap {
-  flex-shrink: 0;
-  width: 148px;
-  height: 148px;
-}
-.rings-wrap .rings {
-  width: 100%;
-  height: 100%;
-  filter: drop-shadow(0 4px 14px color-mix(in srgb, var(--c-move) 18%, transparent));
-}
-.rings-card .card-note {
-  grid-column: 1 / -1;
-}
-.legend {
-  flex: 1;
-  min-width: 0;
+/* 今日のサマリー（横棒の一覧・目標線つき） */
+.summary-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
+  padding: 18px 18px 16px;
 }
-.lg-k {
-  font: 700 11.5px/1 var(--font);
-  color: var(--c);
+.sm-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.sm-k {
+  font: 700 13px/1 var(--font);
   letter-spacing: 0.02em;
-  margin-bottom: 3px;
 }
-.lg-v {
-  font: 700 24px/1.1 var(--font-display);
+.sm-v {
+  font: 700 24px/1 var(--font-display);
   letter-spacing: -0.02em;
   display: flex;
   align-items: baseline;
   gap: 3px;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
-.lg-v small,
-.lg-v .bignum small {
+.sm-v small,
+.sm-v .bignum small {
   font: 600 13px/1 var(--font);
   color: var(--label-2);
   letter-spacing: 0;
 }
-.lg-v .bignum {
+.sm-v .bignum {
   font-size: 24px;
 }
-.lg-s {
+.sm-track {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--fill);
+}
+.sm-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-radius: 5px;
+  background: var(--c);
+  transition: width 1s var(--ease-out);
+}
+.sm-fill.on {
+  width: var(--w);
+}
+.sm-fill.instant {
+  transition: none;
+}
+/* 収支の棒の中央（0）と目標の線 */
+.sm-zero,
+.sm-tick {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+}
+.sm-zero {
+  left: 50%;
+  background: var(--label-3);
+}
+.sm-tick {
+  background: var(--label);
+  box-shadow: 0 0 0 1.5px var(--surface);
+}
+.sm-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  column-gap: 10px;
+  row-gap: 2px;
+  margin-top: 7px;
   font: 400 12px/1.3 var(--font);
   color: var(--label-2);
-  margin-top: 2px;
 }
-.rings-card {
-  flex-wrap: wrap;
+.sm-foot span {
+  white-space: nowrap;
 }
-.rings-card > .card-note {
-  flex-basis: 100%;
-  margin-top: 4px;
+.sm-foot span:last-child {
+  margin-left: auto;
+  text-align: right;
+}
+.summary-card > .card-note {
+  margin-top: -4px;
 }
 
 .train-hero {

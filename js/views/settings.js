@@ -126,7 +126,7 @@ export function createSettingsView() {
           ${stepper('protein', 'タンパク質', `${fmtInt(s.goals.protein)} g`)}
           ${stepper('kcal', '摂取カロリー', s.goals.kcal ? `${fmtInt(s.goals.kcal)} kcal` : '消費に合わせる')}
         </div>
-        <p class="section-note">サマリーのリングの 100% にあたる値です。カロリーを「消費に合わせる」にすると、その日の消費カロリーが目標になります。</p>
+        <p class="section-note">今日のサマリーの棒に引く目標線の値です。カロリーを「消費に合わせる」にすると、収支 ±0 が目標になります。摂取カロリーを決めると、その日の「目標摂取 − 消費」の位置に線が引かれます。</p>
       </div>
 
       <div class="section">
