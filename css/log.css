@@ -743,6 +743,25 @@
   position: relative;
   width: 252px;
   height: 252px;
+  /* 円をなぞる操作をスクロールやシートの引き下げに取られないように */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.timer-ring .knob {
+  fill: #fff;
+  stroke: var(--c-timer);
+  stroke-width: 3;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+  transition: r var(--t-pop) var(--spring-pop);
+  cursor: grab;
+}
+.timer-hero.dragging .knob {
+  r: 14;
+  cursor: grabbing;
+}
+.timer-sheet[data-state='paused'] .knob {
+  stroke: var(--label-3);
 }
 .timer-ring {
   width: 100%;
@@ -758,7 +777,7 @@
   stroke: var(--c-timer);
   stroke-width: 14;
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.28s linear;
+  /* つまみと端がずれないよう補間はしない（0.25 秒ごとの更新で十分なめらか） */
   filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c-timer) 40%, transparent));
 }
 .timer-sheet[data-state='paused'] .prg {

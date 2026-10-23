@@ -813,6 +813,53 @@
   height: 18px;
   transform: rotate(90deg); /* 縦に並んだリストなので上下の矢印にする */
 }
+/* タイマーのテンプレート */
+.tpl-row {
+  gap: 12px;
+}
+.tpl-row + .tpl-row::before {
+  left: 52px;
+}
+.tpl-val {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tpl-del {
+  width: 28px;
+  height: 28px;
+  margin: 0 -2px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.tpl-del span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--c-danger);
+  display: grid;
+  place-items: center;
+}
+.tpl-del span::before {
+  content: '';
+  width: 11px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: #fff;
+}
+.tpl-del[disabled] {
+  opacity: 0.25;
+  pointer-events: none;
+}
+.tpl-row .stepper button {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.row.is-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
 .foot {
   margin: 28px 0 8px;
   text-align: center;

@@ -92,3 +92,11 @@ test('cleanDay: 種目名の末尾「ロー」を「ロウ」にそろえる', (
   const day = cleanDay({ date: '2026-10-22', part: '背中', exercises: [{ name: 'プーリーロー', memo: '', sets: [{ w: 40, r: 10 }] }] });
   assert.equal(day.exercises[0].name, 'プーリーロウ');
 });
+
+import { normalizeTemplates, TEMPLATE_LIMITS } from '../js/store.js';
+test('normalizeTemplates: 5 秒刻み・10 秒〜10 分・重複なし・短い順・最大 8 個', () => {
+  assert.deepEqual(normalizeTemplates([300, 62, 300, 3, 999, 'x', 88]), [10, 60, 90, 300, 600]);
+  assert.equal(normalizeTemplates([10, 20, 30, 40, 50, 60, 70, 80, 90, 100]).length, TEMPLATE_LIMITS.count);
+  assert.deepEqual(normalizeTemplates([]), [60, 90, 120, 150, 180, 240, 300]); // 空なら既定に戻す
+  assert.deepEqual(normalizeTemplates(null), [60, 90, 120, 150, 180, 240, 300]);
+});

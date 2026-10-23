@@ -79,7 +79,7 @@ const nextFrame = () => new Promise((r) => requestAnimationFrame(() => requestAn
  * ルート連動: { routeBound:true, onRequestClose } — 履歴はルーターが管理し、閉じる操作は onRequestClose へ委ねる。
  */
 export function openSheet(opts) {
-  const { title = '', left = '', right = '', tall = false, content, node, onClose, className = '', routeBound = false, onRequestClose } = opts;
+  const { title = '', left = '', right = '', tall = false, content, node, onClose, className = '', routeBound = false, onRequestClose, dragBody = true } = opts;
   const backdrop = createEl(html`<div class="sheet-backdrop"></div>`);
   const sheet = createEl(html`
     <div class="sheet ${tall ? 'tall' : ''} ${className}" role="dialog" aria-modal="true" aria-label="${title}">
@@ -138,7 +138,7 @@ export function openSheet(opts) {
   sheet.addEventListener('click', (e) => {
     if (e.target.closest('[data-close]')) close();
   });
-  enableDrag(sheet, close);
+  enableDrag(sheet, close, { body: dragBody });
 
   return {
     el: sheet,
@@ -150,8 +150,9 @@ export function openSheet(opts) {
   };
 }
 
-function enableDrag(sheet, close) {
-  const body = sheet.querySelector('.sheet-body');
+/** body:false のときは、つまみと見出しの行だけで引き下げられる（本文の操作と取り合わないように） */
+function enableDrag(sheet, close, { body: fromBody = true } = {}) {
+  const body = fromBody ? sheet.querySelector('.sheet-body') : null;
   const handles = [...sheet.querySelectorAll('.sheet-grab, .sheet-head')];
   let startY = 0;
   let dy = 0;

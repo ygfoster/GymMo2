@@ -37,6 +37,7 @@ export const DEFAULT_SETTINGS = {
     autoStart: true,
     nudge: true,
     notify: native.available, // アプリ版は通知が主役なので既定でオン（ブラウザ版は許可が要るのでオフ）
+    templates: [60, 90, 120, 150, 180, 240, 300], // タイマー画面の時間ボタン（設定で編集、最大 8 個・5 秒刻み）
   },
   parts: DEFAULT_PARTS,
   other: { color: '#8E8E93', rest: 120 },
@@ -77,6 +78,15 @@ function sanitizeParts(list) {
 }
 
 const clampRest = (v) => Math.min(600, Math.max(15, Math.round(Number(v) || 120)));
+
+export const TEMPLATE_LIMITS = { min: 10, max: 600, step: 5, count: 8 };
+/** タイマーのテンプレート: 5 秒刻み・10 秒〜10 分・重複なし・短い順・最大 8 個 */
+export function normalizeTemplates(list) {
+  const { min, max, step, count } = TEMPLATE_LIMITS;
+  const out = [...new Set((Array.isArray(list) ? list : []).map((v) => Math.min(max, Math.max(min, Math.round(Number(v) / step) * step))).filter((v) => Number.isFinite(v)))];
+  out.sort((a, b) => a - b);
+  return out.length ? out.slice(0, count) : DEFAULT_SETTINGS.timer.templates.slice();
+}
 let idSeq = 0;
 const newPartId = () => `p${Date.now().toString(36)}${(idSeq++).toString(36)}`;
 
@@ -88,7 +98,8 @@ function mergeSettings(base, saved) {
     if (out[k] && typeof out[k] === 'object' && !Array.isArray(out[k])) {
       for (const kk of Object.keys(out[k])) {
         if (saved[k]?.[kk] === undefined) continue;
-        if (out[k][kk] && typeof out[k][kk] === 'object') out[k][kk] = { ...out[k][kk], ...saved[k][kk] };
+        if (Array.isArray(saved[k][kk]) || Array.isArray(out[k][kk])) out[k][kk] = saved[k][kk];
+        else if (out[k][kk] && typeof out[k][kk] === 'object') out[k][kk] = { ...out[k][kk], ...saved[k][kk] };
         else out[k][kk] = saved[k][kk];
       }
     } else {
@@ -143,6 +154,7 @@ const bump = () => {
 function loadSettings(saved) {
   const out = mergeSettings(DEFAULT_SETTINGS, migrateSettings(saved));
   out.parts = sanitizeParts(out.parts);
+  out.timer.templates = normalizeTemplates(out.timer.templates);
   out.other = { color: /^#[0-9a-f]{6}$/i.test(out.other?.color) ? out.other.color : DEFAULT_SETTINGS.other.color, rest: clampRest(out.other?.rest) };
   return out;
 }

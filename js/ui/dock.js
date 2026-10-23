@@ -8,18 +8,19 @@ import { fmtClock } from '../lib/format.js';
 import { openSheet } from './overlay.js';
 import { confirmDialog } from './overlay.js';
 import { state as appState } from '../store.js';
+import { haptic } from '../lib/haptics.js';
 
 const R = 28; // play ボタンの外周リング半径
 const CIRC = 2 * Math.PI * R;
 
+// 部位名は出さない（ユーザーの要望で「休憩中 · 合計 05:12」のように簡潔に）
 const caption = (snap) => {
-  const part = snap.part ? ` · ${snap.part}` : '';
   const total = snap.started ? ` · 合計 ${fmtClock(snap.workoutSec)}` : '';
   switch (snap.status) {
-    case 'running': return `休憩中${part}${total}`;
-    case 'paused': return `一時停止${part}${total}`;
+    case 'running': return `休憩中${total}`;
+    case 'paused': return `一時停止${total}`;
     case 'done': return '次のセットを始めましょう';
-    default: return snap.started ? `休憩${part}${total}` : `休憩タイマー${part}`;
+    default: return snap.started ? `休憩${total}` : '休憩タイマー';
   }
 };
 
@@ -90,14 +91,22 @@ export function createDock({ variant = 'full', onOpen } = {}) {
 const RING = 112;
 const RC = 2 * Math.PI * RING;
 
+/** 円の上の点（12 時を 0、時計回り）の角度 → 0〜1 */
+const angleFrac = (dx, dy) => {
+  const a = Math.atan2(dx, -dy) / (2 * Math.PI);
+  return a < 0 ? a + 1 : a;
+};
+const DRAG_STEP = 5; // 円をなぞるときの刻み（秒）
+
 export function openTimerSheet() {
-  const presets = [60, 90, 120, 150, 180, 240, 300];
+  const presets = appState.settings.timer.templates;
   const content = createEl(html`
     <div class="timer-sheet">
       <div class="timer-hero">
         <svg viewBox="0 0 252 252" class="timer-ring" aria-hidden="true">
           <circle class="trk" cx="126" cy="126" r="${RING}"/>
           <circle class="prg" cx="126" cy="126" r="${RING}" stroke-dasharray="${RC.toFixed(2)}" stroke-dashoffset="0" transform="rotate(-90 126 126)"/>
+          <circle class="knob" cx="126" cy="${126 - RING}" r="11"/>
         </svg>
         <div class="timer-center">
           <div class="timer-big num">03:00</div>
@@ -117,7 +126,7 @@ export function openTimerSheet() {
         <div><div class="t-footnote muted">ワークアウト合計時間</div><div class="t-title2 num" data-role="total">00:00</div></div>
         <button class="btn btn-danger btn-sm" data-act="end">終了</button>
       </div>
-      <div class="t-footnote muted timer-hint">セット完了のチェックで休憩を自動で開始します（設定で変更できます）。</div>
+      <div class="t-footnote muted timer-hint">円をなぞると残り時間を変えられます。上端を越えて回し続けると延長できます。時間のボタンは「設定 › タイマーのテンプレート」で変更できます。</div>
     </div>`);
   const big = content.querySelector('.timer-big');
   const sub = content.querySelector('.timer-sub');
@@ -126,10 +135,23 @@ export function openTimerSheet() {
   const totalEl = content.querySelector('[data-role="total"]');
   const chips = [...content.querySelectorAll('[data-sec]')];
 
+  const hero = content.querySelector('.timer-hero');
+  const knob = content.querySelector('.knob');
+  /** 進捗リングとつまみ（円の端）を frac（0〜1）の位置に描く */
+  const setRing = (frac) => {
+    prg.style.strokeDashoffset = `${(RC * (1 - frac)).toFixed(2)}`;
+    const a = frac * 2 * Math.PI;
+    knob.setAttribute('cx', (126 + RING * Math.sin(a)).toFixed(2));
+    knob.setAttribute('cy', (126 - RING * Math.cos(a)).toFixed(2));
+  };
+  let drag = null; // 円をなぞっている間の状態（このあいだはタイマーの描画より指の位置を優先）
+
   const paint = (snap) => {
-    big.textContent = fmtClock(Math.ceil(snap.remaining));
-    sub.textContent = caption(snap);
-    prg.style.strokeDashoffset = `${(RC * (1 - snap.progress)).toFixed(2)}`;
+    if (!drag) {
+      big.textContent = fmtClock(Math.ceil(snap.remaining));
+      setRing(snap.progress);
+    }
+    sub.textContent = drag ? (drag.value > drag.lap ? `延長 ＋${fmtClock(drag.value - drag.lap)}` : '指を離すと反映') : caption(snap);
     content.dataset.state = snap.status;
     toggleBtn.textContent = snap.status === 'running' ? '一時停止' : snap.status === 'paused' ? '再開' : '開始';
     totalEl.textContent = fmtClock(snap.workoutSec);
@@ -137,7 +159,81 @@ export function openTimerSheet() {
   };
   const unsub = timer.subscribe(paint);
 
-  const sheet = openSheet({ title: '休憩タイマー', content, right: html`<button class="nav-btn strong" data-close>完了</button>`, onClose: unsub });
+  /* ---------- 円をなぞって残り時間を変える ----------
+     1 周＝この休憩の設定時間。指を置いた位置がそのまま残り時間になり、上端を越えて時計回りに回し続けると
+     1 周ごとに設定時間ぶん延長できる。5 秒刻み・5 秒〜60 分。指を離したときにタイマーへ反映する。 */
+  const previewDrag = () => {
+    const { value, lap } = drag;
+    // 2 周目以降も指と円の端がずれないよう、1 周ぶんの余りで描く（ちょうど 1 周は満タン）
+    const rem = value % lap;
+    const frac = value > 0 && rem === 0 ? 1 : rem / lap;
+    big.textContent = fmtClock(value);
+    setRing(frac);
+    sub.textContent = value > lap ? `延長 ＋${fmtClock(value - lap)}` : '指を離すと反映';
+  };
+  const pointAt = (e) => {
+    const r = hero.getBoundingClientRect();
+    const k = r.width / 252; // viewBox 252 → 実寸
+    const dx = (e.clientX - (r.left + r.width / 2)) / k;
+    const dy = (e.clientY - (r.top + r.height / 2)) / k;
+    return { dx, dy, dist: Math.hypot(dx, dy) };
+  };
+  hero.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const p = pointAt(e);
+    // 円の帯（中央の数字の部分は除く）に触れたときだけ
+    if (p.dist < RING * 0.6 || p.dist > RING * 1.25) return;
+    e.preventDefault();
+    const snap = timer.snapshot();
+    const lap = Math.max(DRAG_STEP, Math.round(snap.total));
+    const f = angleFrac(p.dx, p.dy);
+    // 触った位置がそのまま残り時間（0〜1 周）。ただし満タンに近いときに上端のすぐ右（つまみの辺り）を触ったら、
+    // 「0 秒」ではなく「満タン」とみなす（つまみをつかんだ瞬間に一気に縮まないように）
+    const cur = snap.remaining / lap;
+    const turns = f < 0.08 && cur > 0.75 ? f + 1 : f;
+    drag = { id: e.pointerId, lap, turns, lastFrac: f, value: 0, lastHaptic: 0 };
+    hero.setPointerCapture?.(e.pointerId);
+    hero.classList.add('dragging');
+    update(f);
+  });
+  const update = (f) => {
+    // 角度の差を -0.5〜0.5 に畳んで積算し、上端をまたいでも連続した回転量として扱う
+    let d = f - drag.lastFrac;
+    if (d > 0.5) d -= 1;
+    else if (d < -0.5) d += 1;
+    drag.lastFrac = f;
+    drag.turns = Math.min(3600 / drag.lap, Math.max(0, drag.turns + (drag.started ? d : 0)));
+    drag.started = true;
+    const value = Math.min(3600, Math.max(DRAG_STEP, Math.round((drag.turns * drag.lap) / DRAG_STEP) * DRAG_STEP));
+    if (value !== drag.value) {
+      const t = performance.now();
+      if (drag.value && t - drag.lastHaptic > 35) {
+        haptic.select();
+        drag.lastHaptic = t;
+      }
+      drag.value = value;
+    }
+    previewDrag();
+  };
+  hero.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const p = pointAt(e);
+    if (p.dist < 8) return; // 中心付近は角度が暴れるので無視
+    update(angleFrac(p.dx, p.dy));
+  });
+  const endDrag = (e, commit) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const value = drag.value;
+    drag = null;
+    hero.classList.remove('dragging');
+    if (commit) timer.setRemaining(value);
+    else paint(timer.snapshot());
+  };
+  hero.addEventListener('pointerup', (e) => endDrag(e, true));
+  hero.addEventListener('pointercancel', (e) => endDrag(e, false));
+
+  // 引き下げて閉じる操作は見出しの行だけ（円をなぞっても閉じないように）
+  const sheet = openSheet({ title: '休憩タイマー', content, right: html`<button class="nav-btn strong" data-close>完了</button>`, onClose: unsub, dragBody: false });
   content.addEventListener('click', async (e) => {
     const adj = e.target.closest('[data-adj]');
     const sec = e.target.closest('[data-sec]');

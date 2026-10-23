@@ -3,7 +3,7 @@ import { html, createEl } from '../lib/html.js';
 import { icons } from '../ui/icons.js';
 import { createScreen } from './common.js';
 import { morph } from '../lib/dom.js';
-import { state, on, updateSettings, sync, disconnect, resetDemo, partColor, updatePart, addPart, deletePart, movePart, renamePart, validatePartName, PART_NAME_MAX } from '../store.js';
+import { state, on, updateSettings, sync, disconnect, resetDemo, partColor, updatePart, addPart, deletePart, movePart, renamePart, validatePartName, PART_NAME_MAX, normalizeTemplates, TEMPLATE_LIMITS } from '../store.js';
 import { CONFIG } from '../config.js';
 import { openSheet, confirmDialog, toast, showHud } from '../ui/overlay.js';
 import { formatSleep, trainingToRows, normPart, OTHER_PART } from '../lib/parse.js';
@@ -111,6 +111,10 @@ export function createSettingsView() {
           <button class="row has-icon" data-open="parts">${iconTile('#30B0C7', icons.dumbbell)}
             <div class="row-body"><div class="row-title">部位と休憩時間</div><div class="row-sub">名前・色・休憩時間・追加と削除</div></div>
             <div class="row-value"><span class="swatches">${[...s.parts.map((p) => p.color), s.other.color].map((c) => html`<i style="background:${c}"></i>`)}</span></div>${icons.rowChevron}
+          </button>
+          <button class="row has-icon" data-open="templates">${iconTile('#FF9500', icons.stopwatch)}
+            <div class="row-body"><div class="row-title">タイマーのテンプレート</div><div class="row-sub">タイマー画面の時間ボタン（最大${TEMPLATE_LIMITS.count}個）</div></div>
+            <div class="row-value">${s.timer.templates.length}個</div>${icons.rowChevron}
           </button>
         </div>
       </div>
@@ -336,6 +340,93 @@ export function createSettingsView() {
     if (isNew) setTimeout(() => input?.focus(), 420);
   };
 
+  /* ---------- タイマーのテンプレート ---------- */
+  // 編集中は並びを保ち（押している行が動かないように）、保存は常に短い順・重複なしで行う。閉じると表示も短い順になる。
+  const openTemplatesSheet = () => {
+    const { min, max, step, count } = TEMPLATE_LIMITS;
+    let list = state.settings.timer.templates.slice();
+    const body = createEl(html`<div class="tpl-editor">
+      <div class="group tpl-list"></div>
+      <div class="group" style="margin-top:14px"><button class="row add-part" data-tadd>${iconTile('#34C759', icons.plus)}<div class="row-body"><div class="row-title">テンプレートを追加</div></div></button></div>
+      <p class="section-note">−／＋ は ${step} 秒刻みです（長押しで連続して変わります）。${fmtClock(min)}〜${fmtClock(max)}・最大 ${count} 個。タイマー画面には短い順に並びます。</p>
+    </div>`);
+    const save = () => updateSettings({ timer: { templates: normalizeTemplates(list) } });
+    const paint = () => {
+      body.querySelector('.tpl-list').innerHTML = String(html`${list.map((v, i) => html`<div class="row tpl-row" data-i="${i}">
+        <button class="tpl-del" data-tdel="${i}" aria-label="${fmtClock(v)} を削除" ${list.length <= 1 ? 'disabled' : ''}><span></span></button>
+        <div class="row-body"><div class="row-title num tpl-val">${fmtClock(v)}</div></div>
+        <div class="stepper"><button data-tstep="${i}" data-d="-1" aria-label="${step}秒短く">−</button><span class="sep"></span><button data-tstep="${i}" data-d="1" aria-label="${step}秒長く">＋</button></div>
+      </div>`)}`);
+      const add = body.querySelector('[data-tadd]');
+      add.disabled = list.length >= count;
+      add.classList.toggle('is-disabled', list.length >= count);
+    };
+    const stepBy = (btn) => {
+      const i = Number(btn.dataset.tstep);
+      const next = Math.min(max, Math.max(min, list[i] + Number(btn.dataset.d) * step));
+      if (next === list[i]) return false;
+      list[i] = next;
+      btn.closest('.tpl-row').querySelector('.tpl-val').textContent = fmtClock(next);
+      haptic.select();
+      save();
+      return true;
+    };
+    // 長押しで連続変更（だんだん速く）
+    let rep = 0;
+    const stopRepeat = () => {
+      clearTimeout(rep);
+      rep = 0;
+    };
+    body.addEventListener('pointerdown', (e) => {
+      const b = e.target.closest('[data-tstep]');
+      if (!b) return;
+      e.preventDefault();
+      stopRepeat();
+      stepBy(b);
+      let delay = 420;
+      const again = () => {
+        if (!stepBy(b)) return stopRepeat();
+        delay = Math.max(45, delay * 0.8);
+        rep = setTimeout(again, delay);
+      };
+      rep = setTimeout(again, delay);
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => body.addEventListener(t, stopRepeat));
+    body.addEventListener('click', (e) => {
+      const st = e.target.closest('[data-tstep]');
+      if (st) {
+        if (e.detail === 0) stepBy(st); // キーボード操作（ポインターでは pointerdown で処理済み）
+        return;
+      }
+      const del = e.target.closest('[data-tdel]');
+      if (del && !del.disabled) {
+        haptic.warning();
+        list.splice(Number(del.dataset.tdel), 1);
+        save();
+        paint();
+        return;
+      }
+      if (e.target.closest('[data-tadd]') && list.length < count) {
+        haptic.tap();
+        let v = Math.min(max, Math.max(...list) + 30);
+        while (list.includes(v) && v > min) v -= step;
+        list.push(v);
+        save();
+        paint();
+      }
+    });
+    paint();
+    openSheet({
+      title: 'タイマーのテンプレート',
+      content: body,
+      right: html`<button class="nav-btn strong" data-close>完了</button>`,
+      onClose: () => {
+        stopRepeat();
+        save();
+      },
+    });
+  };
+
   /* ---------- 書き出し ---------- */
   const exportTraining = () => {
     const rows = [['日付', 'トレーニング部位', '種目', '重量 × 回数', 'トレーニングメモ']];
@@ -403,6 +494,7 @@ export function createSettingsView() {
     }
     const open = t.closest('[data-open]')?.dataset.open;
     if (open === 'parts') return openPartsSheet();
+    if (open === 'templates') return openTemplatesSheet();
     const act = t.closest('[data-act]')?.dataset.act;
     if (act === 'sync') {
       if (!state.mode) return;

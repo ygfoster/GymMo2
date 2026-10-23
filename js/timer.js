@@ -55,7 +55,7 @@ function nativeState() {
     endsAt: s.status === 'running' ? s.restEndsAt : 0,
     remainingSec: s.status === 'running' ? 0 : s.restRemaining,
     totalSec: s.restTotal,
-    label: s.part || '',
+    label: '', // 通知には部位名を出さない（「一時停止」「残り 1:23」だけにする）
     logDate: s.logDate || '',
     startedAt: s.startedAt || 0,
     updatedAt: s.updatedAt,
@@ -293,6 +293,27 @@ export const timer = {
     s.restRemaining = s.restTotal;
     haptic.tap();
     releaseWakeLock();
+    emit();
+  },
+
+  /**
+   * 残り時間を直接決める（タイマー画面の円をなぞる操作）。設定時間より長くすると設定時間も伸びる。
+   * 待機中は「次に始める休憩の長さ」、実行中・一時停止中は「今の休憩の残り」を変える。
+   */
+  setRemaining(seconds) {
+    const sec = Math.min(3600, Math.max(5, Math.round(seconds)));
+    clearTimeout(doneTimer);
+    if (s.status === 'running') {
+      s.restEndsAt = now() + sec * 1000;
+      s.restTotal = Math.max(s.restTotal, sec);
+    } else if (s.status === 'paused') {
+      s.restRemaining = sec;
+      s.restTotal = Math.max(s.restTotal, sec);
+    } else {
+      s.status = 'idle';
+      s.restTotal = sec;
+      s.restRemaining = sec;
+    }
     emit();
   },
 
