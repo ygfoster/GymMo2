@@ -846,6 +846,8 @@ export function createLogView({ date: dateParam }) {
 
   return {
     el: root,
+    // 種目カード（セットの左スワイプ削除）とタイマーのドックでは、下スワイプで画面を閉じない
+    dragExclude: '.xlist, .log-dock',
     onShow() {
       if (!form.exercises.some((e) => e.name.trim())) setTimeout(() => body.querySelector('.xname')?.focus({ preventScroll: true }), 650);
     },

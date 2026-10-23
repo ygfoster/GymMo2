@@ -79,7 +79,7 @@ const nextFrame = () => new Promise((r) => requestAnimationFrame(() => requestAn
  * ルート連動: { routeBound:true, onRequestClose } — 履歴はルーターが管理し、閉じる操作は onRequestClose へ委ねる。
  */
 export function openSheet(opts) {
-  const { title = '', left = '', right = '', tall = false, content, node, onClose, className = '', routeBound = false, onRequestClose, dragBody = true } = opts;
+  const { title = '', left = '', right = '', tall = false, content, node, onClose, className = '', routeBound = false, onRequestClose, dragBody = true, dragExclude = '' } = opts;
   const backdrop = createEl(html`<div class="sheet-backdrop"></div>`);
   const sheet = createEl(html`
     <div class="sheet ${tall ? 'tall' : ''} ${className}" role="dialog" aria-modal="true" aria-label="${title}">
@@ -138,7 +138,7 @@ export function openSheet(opts) {
   sheet.addEventListener('click', (e) => {
     if (e.target.closest('[data-close]')) close();
   });
-  enableDrag(sheet, close, { body: dragBody });
+  enableDrag(sheet, close, { body: dragBody, exclude: dragExclude });
 
   return {
     el: sheet,
@@ -150,8 +150,11 @@ export function openSheet(opts) {
   };
 }
 
-/** body:false のときは、つまみと見出しの行だけで引き下げられる（本文の操作と取り合わないように） */
-function enableDrag(sheet, close, { body: fromBody = true } = {}) {
+/**
+ * body:false のときは、つまみと見出しの行だけで引き下げられる（本文の操作と取り合わないように）。
+ * exclude: 本文のうち、引き下げを始めない部分のセレクタ（記録画面の種目カードなど、左スワイプと取り合う場所）。
+ */
+function enableDrag(sheet, close, { body: fromBody = true, exclude = '' } = {}) {
   const body = fromBody ? sheet.querySelector('.sheet-body') : null;
   const handles = [...sheet.querySelectorAll('.sheet-grab, .sheet-head')];
   let startY = 0;
@@ -199,15 +202,24 @@ function enableDrag(sheet, close, { body: fromBody = true } = {}) {
   // 本文がいちばん上までスクロールされている状態からの引き下げ
   if (!body) return;
   let bodyTracking = false;
+  let startX = 0;
   body.addEventListener('touchstart', (e) => {
-    bodyTracking = body.scrollTop <= 0;
+    bodyTracking = body.scrollTop <= 0 && !(exclude && e.target.closest?.(exclude));
     startY = e.touches[0].clientY;
+    startX = e.touches[0].clientX;
   }, { passive: true });
   body.addEventListener('touchmove', (e) => {
     if (!bodyTracking) return;
     const y = e.touches[0].clientY;
     if (!active) {
-      if (y - startY > 10 && body.scrollTop <= 0) begin(startY);
+      const dy = y - startY;
+      const dx = Math.abs(e.touches[0].clientX - startX);
+      // 横方向の動き（左スワイプ・チップの横スクロール）が混ざる操作では閉じない。はっきり下向きのときだけ
+      if (dx > 12 && dx > dy * 0.6) {
+        bodyTracking = false;
+        return;
+      }
+      if (dy > 10 && dy > dx * 1.7 && body.scrollTop <= 0) begin(startY);
       else return;
     }
     e.preventDefault();

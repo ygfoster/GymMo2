@@ -208,6 +208,7 @@ function pushEntry(m, anim) {
       tall: true,
       routeBound: true,
       className: 'modal-screen',
+      dragExclude: view.dragExclude || '',
       onRequestClose: () => router.back(),
     });
     shellEl.classList.add('hide-tabbar');
