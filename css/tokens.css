@@ -39,6 +39,7 @@
   --c-sleep-2: light-dark(#8e8cf0, #a9a7ff);
   --c-train: light-dark(#30b950, #a4f53c); /* 運動・タイマー・完了 */
   --c-train-2: light-dark(#6fdc87, #d4ff7a);
+  --c-timer: light-dark(#ff9500, #ff9f0a); /* 休憩タイマー（再生ボタンの進捗リング・ドックの色味） */
   --c-gold: #ffb800;
   --c-gold-2: #ff8a00;
   --c-danger: light-dark(#ff3b30, #ff453a);

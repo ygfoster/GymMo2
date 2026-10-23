@@ -598,7 +598,7 @@
 }
 .dock-ring .prg {
   fill: none;
-  stroke: var(--c-train);
+  stroke: var(--c-timer);
   stroke-width: 4.5;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.28s linear;
@@ -615,24 +615,18 @@
   width: 26px;
   height: 26px;
 }
-.dock-play .dock-icon .ico svg {
-  transform: translateX(1.5px);
-}
-.dock[data-state='running'] .dock-play .dock-icon .ico svg {
-  transform: none;
-}
 @keyframes icon-swap {
   from { opacity: 0; transform: scale(0.5); }
   to { opacity: 1; transform: scale(1); }
 }
 .dock[data-state='running'] {
-  background: color-mix(in srgb, var(--c-train) 13%, var(--material-thick));
+  background: color-mix(in srgb, var(--c-timer) 13%, var(--material-thick));
 }
 .dock[data-state='paused'] .dock-time {
   color: var(--label-2);
 }
 .dock[data-state='done'] {
-  background: color-mix(in srgb, var(--c-train) 26%, var(--material-thick));
+  background: color-mix(in srgb, var(--c-timer) 26%, var(--material-thick));
 }
 .dock[data-state='done'] .dock-time {
   animation: done-flash 0.8s ease-in-out infinite alternate;
@@ -658,10 +652,10 @@
   animation: dock-nudge 1.5s var(--ease-in-out) infinite;
 }
 .dock.nudge .dock-ring .trk {
-  stroke: var(--c-train);
+  stroke: var(--c-timer);
 }
 @keyframes dock-nudge {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-train) 55%, transparent); }
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-timer) 55%, transparent); }
   50% { transform: scale(1.07); box-shadow: 0 0 0 12px transparent; }
 }
 
@@ -761,11 +755,11 @@
 }
 .timer-ring .prg {
   fill: none;
-  stroke: var(--c-train);
+  stroke: var(--c-timer);
   stroke-width: 14;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.28s linear;
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c-train) 40%, transparent));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c-timer) 40%, transparent));
 }
 .timer-sheet[data-state='paused'] .prg {
   stroke: var(--label-3);

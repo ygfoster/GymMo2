@@ -41,7 +41,7 @@ export const icons = {
   search: svg(`<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>`),
 
   // ----- タイマー -----
-  play: raw(`<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.2v13.6a1 1 0 0 0 1.52.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 8 5.2z"/></svg>`),
+  play: raw(`<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5.5 5.2v13.6a1 1 0 0 0 1.52.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 5.5 5.2z"/></svg>`),
   pause: raw(`<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4.5" width="4.4" height="15" rx="1.4"/><rect x="13.6" y="4.5" width="4.4" height="15" rx="1.4"/></svg>`),
   resetArrow: svg(`<path d="M4.5 12a7.5 7.5 0 1 0 2.4-5.5L4.5 8.8"/><path d="M4.5 4.2v4.6h4.6"/>`, 'stroke-width="2"'),
   stopwatch: svg(`<circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 3h5M18.5 6l1.2-1.2"/>`),
