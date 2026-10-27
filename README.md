@@ -29,10 +29,21 @@ npm run serve        # http://127.0.0.1:5173 （web/ だけを配信する開発
 npx wrangler dev     # http://127.0.0.1:8787 （画面 + API。ローカルの D1 を使う。秘密情報は .dev.vars）
 npm test             # ユニットテスト（日付・パース・指標・API・Worker の純粋関数）
 node scripts/offline-check.mjs   # ヘッドレス Chrome で Service Worker のオフライン起動を検証
-npx wrangler deploy  # 本番（Cloudflare）へ公開
+npx wrangler deploy  # 手元から本番（Cloudflare）へ公開（ふだんは不要。下の自動公開を使う）
 ```
 
 ローカルの D1 を作るときは `npx wrangler d1 migrations apply gymmo2 --local`。
+
+### 公開（GitHub に push すると自動）
+
+`main` に push すると、Cloudflare の **Workers Builds** が自動で公開します（GitHub の Cloudflare Workers and Pages アプリを、このリポジトリだけに許可済み）。
+
+1. 依存関係をインストール（`npm ci`）
+2. ビルドコマンド `npm test` — **テストが 1 つでも失敗したら公開しない**
+3. 公開コマンド `npx wrangler deploy`
+
+結果は Cloudflare のダッシュボード（Workers & Pages › gymmo2 › Deployments）と、GitHub のコミットのチェック欄で確認できます。
+D1 の表定義（`migrations/`）を変えたときだけは、公開の前に手元で `npx wrangler d1 migrations apply gymmo2 --remote` を実行してください（自動公開では実行しません）。
 
 ## 構成
 
