@@ -2,39 +2,46 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-  <title>GymMo</title>
-  <meta name="description" content="ワークアウトとコンディションを、ひとつに。筋トレ記録とGoogleヘルスのデータを一画面で。">
-  <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-  <meta name="color-scheme" content="light dark">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="GymMo">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="css/tokens.css">
-  <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/screens.css">
-  <link rel="stylesheet" href="css/log.css">
-  <link rel="modulepreload" href="js/main.js">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>GymMo2 は移転しました</title>
+  <!-- GymMo2 は Cloudflare（https://gymmo2.gymmo2.workers.dev/）へ移転した。ここは旧住所（GitHub Pages）からの転送ページ。 -->
+  <style>
+    :root { color-scheme: light dark; --bg: light-dark(#f2f2f7, #000); --fg: light-dark(#000, #fff); --sub: light-dark(rgba(60,60,67,.62), rgba(235,235,245,.62)); }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--fg);
+      font: 16px/1.6 -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif; text-align: center; padding: 24px; box-sizing: border-box; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    p { color: var(--sub); margin: 0 0 22px; }
+    a.btn { display: inline-block; padding: 13px 26px; border-radius: 14px; background: var(--fg); color: var(--bg); text-decoration: none; font-weight: 600; }
+  </style>
 </head>
 <body>
-  <div id="app">
-    <div class="shell" id="shell">
-      <div class="stage" id="stage"></div>
-      <div class="overlay-root" id="overlay-root"></div>
-    </div>
-  </div>
-  <noscript><p style="padding:24px;font-family:sans-serif">GymMo の利用には JavaScript が必要です。</p></noscript>
-  <script type="module" src="js/main.js"></script>
+  <main>
+    <h1>GymMo2 は移転しました</h1>
+    <p id="msg">新しい住所へ移動しています…</p>
+    <a class="btn" id="go" href="https://gymmo2.gymmo2.workers.dev/">新しい GymMo2 を開く</a>
+  </main>
+  <script>
+    (function () {
+      var NEW = 'https://gymmo2.gymmo2.workers.dev/';
+      // 接続リンク（#/connect?k=…）などの続きを、そのまま新しい住所へ引き継ぐ
+      var target = NEW + (location.hash || '');
+      document.getElementById('go').href = target;
+      // 古いサービスワーカー（キャッシュ）を片付ける
+      try {
+        if (navigator.serviceWorker) navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); });
+        if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { if (k.indexOf('gymmo2') === 0) caches.delete(k); }); });
+      } catch (e) {}
+      // 旧 Android アプリ（1.0.x）の中で開かれた場合: 新しい住所はアプリ外として扱われるので、アプリの更新を案内する
+      if (window.GymMoNative) {
+        document.getElementById('msg').textContent = 'アプリの更新が必要です。下のボタンから新しいアプリ（APK）をダウンロードして、上書きインストールしてください。記録はそのまま残ります。';
+        var go = document.getElementById('go');
+        go.textContent = '新しいアプリをダウンロード';
+        go.href = 'https://github.com/ygfoster/GymMo2/releases/latest';
+        return;
+      }
+      location.replace(target);
+    })();
+  </script>
 </body>
 </html>

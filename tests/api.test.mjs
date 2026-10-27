@@ -1,10 +1,10 @@
 // フロントの API クライアント（ライブ/デモ）と、ストアの記録整形をテストする。fetch はモック。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createLiveApi, createDemoApi, ApiError } from '../js/api.js';
-import { cleanDay } from '../js/store.js';
-import { rowsToTraining, rowsToHealth } from '../js/lib/parse.js';
-import { todayKey } from '../js/lib/dates.js';
+import { createLiveApi, createDemoApi, ApiError } from '../web/js/api.js';
+import { cleanDay } from '../web/js/store.js';
+import { rowsToTraining, rowsToHealth } from '../web/js/lib/parse.js';
+import { todayKey } from '../web/js/lib/dates.js';
 
 const mockFetch = (impl) => {
   globalThis.fetch = async (url, opts) => impl(url, opts);
@@ -93,7 +93,7 @@ test('cleanDay: 種目名の末尾「ロー」を「ロウ」にそろえる', (
   assert.equal(day.exercises[0].name, 'プーリーロウ');
 });
 
-import { normalizeTemplates, TEMPLATE_LIMITS } from '../js/store.js';
+import { normalizeTemplates, TEMPLATE_LIMITS } from '../web/js/store.js';
 test('normalizeTemplates: 5 秒刻み・10 秒〜10 分・重複なし・短い順・最大 8 個', () => {
   assert.deepEqual(normalizeTemplates([300, 62, 300, 3, 999, 'x', 88]), [10, 60, 90, 300, 600]);
   assert.equal(normalizeTemplates([10, 20, 30, 40, 50, 60, 70, 80, 90, 100]).length, TEMPLATE_LIMITS.count);

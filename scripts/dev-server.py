@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-"""開発用の静的サーバー。キャッシュ無効 + .webmanifest/.js の正しい MIME タイプ。"""
+"""開発用の静的サーバー（web/ を配信）。キャッシュ無効 + .webmanifest/.js の正しい MIME タイプ。
+API（/api）は持たないので、ローカルでは ?demo のデモモードで確認する。本番の API は Cloudflare Worker（worker/）。"""
+import functools
 import http.server
+import os
 import socketserver
 import sys
 
@@ -22,6 +25,8 @@ class Server(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
 
 
-with Server(('127.0.0.1', PORT), Handler) as httpd:
+WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'web')
+
+with Server(('127.0.0.1', PORT), functools.partial(Handler, directory=WEB_DIR)) as httpd:
     print(f'serving on http://127.0.0.1:{PORT}')
     httpd.serve_forever()

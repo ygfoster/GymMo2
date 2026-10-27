@@ -13,3 +13,5 @@ android/app/build/
 android/.idea/
 *.apk
 *.aab
+.dev.vars
+.wrangler/

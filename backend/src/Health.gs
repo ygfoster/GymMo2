@@ -70,6 +70,7 @@ function setupAutoSyncTrigger() {
 }
 
 function syncRecentHealthDataToSheet() {
+  if (MOVED_TO) return; // 移転後は Cloudflare の Cron が取得してシートへコピーする
   var ss = spreadsheet_();
   var now = new Date();
   var dates = [];

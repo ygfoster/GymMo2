@@ -1,4 +1,4 @@
-// バックエンド（Apps Script ウェブアプリ）クライアントと、同じインターフェースのデモ実装。
+// バックエンド（Cloudflare Worker の /api）クライアントと、同じインターフェースのデモ実装。
 // 通信は常に POST + text/plain（CORS のプリフライトを避ける）。トークンは URL ではなくボディで送る。
 import { CONFIG } from './config.js';
 import { buildDemoRows } from './demo-data.js';
@@ -37,7 +37,7 @@ export function createLiveApi({ url, getToken }) {
     try {
       json = await res.json();
     } catch {
-      throw new ApiError('サーバーの応答を解析できませんでした（Apps Script の承認が済んでいない可能性があります）', 'server');
+      throw new ApiError('サーバーの応答を解析できませんでした', 'server');
     }
     if (!json || json.ok === false) {
       throw new ApiError(json?.error || 'サーバーエラー', json?.code === 'AUTH' ? 'auth' : 'server');

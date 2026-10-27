@@ -1,10 +1,11 @@
 # GymMo2
 
 ワークアウトの記録と、Google ヘルス（Fitbit Air）のコンディションデータを、ひとつの画面で見られる筋トレ記録アプリ（PWA）。
-元の [GymMo](https://github.com/ygfoster/GymMo) を Apple の Human Interface Guidelines を手本に作り直したもので、元アプリとは**完全に独立**して動きます（シートも Apps Script も別）。
+元の [GymMo](https://github.com/ygfoster/GymMo) を Apple の Human Interface Guidelines を手本に作り直したもので、元アプリとは**完全に独立**して動きます（データもバックエンドも別）。
 
-- 公開先: https://ygfoster.github.io/GymMo2/
-- ビルド不要（プレーンな HTML / CSS / ES Modules）。GitHub Pages にそのまま置けます。
+- 公開先: **https://gymmo2.gymmo2.workers.dev/** （Cloudflare Workers）
+- 旧住所 https://ygfoster.github.io/GymMo2/ は新しい住所への転送ページです（リポジトリ直下の `index.html` / `sw.js`）。
+- 画面はビルド不要（プレーンな HTML / CSS / ES Modules、`web/`）。API は同じ住所の `/api`（`worker/`）。
 
 ## 画面
 
@@ -24,36 +25,41 @@
 ## 開発
 
 ```bash
-npm run serve        # http://127.0.0.1:5173 （キャッシュ無効の開発サーバー）
-npm test             # ユニットテスト（日付・パース・指標・API・バックエンドの純粋関数）
+npm run serve        # http://127.0.0.1:5173 （web/ だけを配信する開発サーバー。?demo でデモデータ）
+npx wrangler dev     # http://127.0.0.1:8787 （画面 + API。ローカルの D1 を使う。秘密情報は .dev.vars）
+npm test             # ユニットテスト（日付・パース・指標・API・Worker の純粋関数）
 node scripts/offline-check.mjs   # ヘッドレス Chrome で Service Worker のオフライン起動を検証
+npx wrangler deploy  # 本番（Cloudflare）へ公開
 ```
 
-`http://127.0.0.1:5173/?demo` でデモデータ（合成データ）が使えます。
+ローカルの D1 を作るときは `npx wrangler d1 migrations apply gymmo2 --local`。
 
 ## 構成
 
 ```
-index.html / manifest.webmanifest / sw.js
-css/      tokens.css（色・タイポ・モーション） base.css components.css screens.css log.css
-js/
-  main.js router.js store.js api.js timer.js demo-data.js config.js
-  lib/    dates parse metrics format html dom storage haptics sound   ← 純粋ロジック（テスト対象）
-  ui/     overlay（シート/メニュー/ダイアログ/HUD/トースト） charts tabbar dock calendar ptr icons
-  views/  day history analyze settings log exercise welcome
-android/  Android アプリ（WebView + ネイティブの休憩タイマー通知）
-backend/  Apps Script（clasp 管理）。GymMo2 専用のシートに読み書きし、Google ヘルス API を同期する
-tests/    node --test
-docs/     DESIGN.md（設計判断・元アプリとの比較）
+web/                 画面（Cloudflare が静的ファイルとして配信）
+  index.html manifest.webmanifest sw.js
+  css/   tokens.css（色・タイポ・モーション） base.css components.css screens.css log.css
+  js/    main.js router.js store.js api.js timer.js demo-data.js config.js native.js
+    lib/    dates parse metrics format html dom storage haptics sound   ← 純粋ロジック（テスト対象）
+    ui/     overlay（シート/メニュー/ダイアログ/HUD/トースト） charts tabbar dock calendar ptr icons
+    views/  day history analyze settings log exercise welcome
+worker/src/          API（Cloudflare Worker）: index.js（ルーティング・各操作・Cron） db.js（D1） google.js（OAuth・Google ヘルス・シートへのコピー） lib.js（純粋関数）
+migrations/          D1 の表定義
+wrangler.jsonc       Worker の設定（D1・Cron・静的ファイル）
+android/             Android アプリ（WebView + ネイティブの休憩タイマー通知）
+backend/             旧バックエンド（Apps Script）。2026-10 に移行済みで、今は「移転モード」（書き込み停止）
+index.html sw.js     旧住所（GitHub Pages）からの転送ページと、古いサービスワーカーの片付け
+tests/  node --test   docs/  DESIGN.md（設計判断・元アプリとの比較）
 ```
 
-## バックエンド（Apps Script）
+## バックエンド（Cloudflare Workers + D1）
 
-`backend/README.md` を参照。要点:
-
-- アプリは Apps Script ウェブアプリに **POST（本文は JSON）** で接続します。パスコードは URL ではなく本文で送ります。
-- パスコードとシート ID、OAuth クライアント情報は `backend/src/Config.gs`（**git に含まれません**）にあり、アプリ側のコードには書かれていません。初回起動時に入力したパスコードは、その端末の `localStorage` にだけ保存されます。
-- 保存先は GymMo2 専用に複製したシートです。元の GymMo のシートは参照しません。
+- **データの本体は D1**（SQLite）。保存・削除・部位名の変更のたびに、GymMo2 専用に複製した Google スプレッドシートへ**自動でコピー**します（アプリ → シートの一方向。シートを手で直してもアプリには戻りません）。元の GymMo のシートは参照しません。
+- **Google ヘルス**: 1 時間ごとの Cron（毎時 7 分）で直近 7 日分を取得して保存し、シートにも反映します。アプリで日付を開いたときも、その日の値を取り直します。
+- **Google との連携の許可**（初回・許可が切れたとき）: API の `oauthStart` で許可画面の URL を作り、開いて許可します。戻り先は `https://gymmo2.gymmo2.workers.dev/oauth/callback`（Google Cloud Console の OAuth クライアントに登録が必要）。
+- **秘密情報**（`API_TOKEN`＝アプリのパスコード、`GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`）は `wrangler secret put` で Cloudflare に登録してあり、**リポジトリには含まれません**。パスコードは URL ではなく本文で送り、端末では `localStorage` にだけ保存されます。
+- 状態の確認: `python3 scripts/api-check.py read`（Google 連携・シートへのコピーの状態も表示）。
 
 ## ライセンス・フォント
 

@@ -1,6 +1,6 @@
 # GymMo2 Android アプリ
 
-Web アプリ（https://ygfoster.github.io/GymMo2/）を全画面で表示する Android アプリです。
+Web アプリ（https://gymmo2.gymmo2.workers.dev/ 、Cloudflare）を全画面で表示する Android アプリです。
 **ブラウザ版との違いは、休憩タイマーを OS の通知とアラームで動かすこと**だけです。画面は Web アプリそのものなので、Web 側を更新すればアプリの入れ直しは不要です（ネイティブ側を変えたときだけ APK を作り直します）。
 
 ## ブラウザ版（PWA）では実現できなかったこと
@@ -26,11 +26,12 @@ Web（js/timer.js）  ──timerSync(JSON)──▶  NativeBridge ─▶ TimerN
 
 ## 接続リンク（App Links）
 
-`https://ygfoster.github.io/GymMo2/#/connect?k=…` を端末で開くと、ブラウザではなく**このアプリが直接開き**、パスコードを入力せずに接続できます（`backend` の接続リンク/QR 用）。
+`https://gymmo2.gymmo2.workers.dev/#/connect?k=…` を端末で開くと、ブラウザではなく**このアプリが直接開き**、パスコードを入力せずに接続できます（接続リンク/QR 用）。
 
-- アプリ側: `AndroidManifest.xml` の VIEW フィルターに `android:autoVerify="true"`。
-- サイト側: `https://ygfoster.github.io/.well-known/assetlinks.json`（リポジトリ `ygfoster/ygfoster.github.io`）に、このアプリのパッケージ名と**署名鍵の SHA-256 指紋**を登録済み。署名鍵を作り直したときは、この指紋も更新する。
-- 確認: `adb shell pm get-app-links io.github.ygfoster.gymmo2` で `ygfoster.github.io: verified` になっていること。
+- アプリ側: `AndroidManifest.xml` の VIEW フィルターに `android:autoVerify="true"`（新しい住所と、旧住所 `ygfoster.github.io/GymMo2` の転送ページの両方）。
+- サイト側: Worker（`worker/src/index.js` の `ASSET_LINKS`）が `/.well-known/assetlinks.json` を返し、パッケージ名と**署名鍵の SHA-256 指紋**を伝える。旧住所の分は `ygfoster/ygfoster.github.io` の assetlinks.json に登録済み。署名鍵を作り直したときは、両方の指紋を更新する。
+- 確認: `adb shell pm get-app-links io.github.ygfoster.gymmo2` で `gymmo2.gymmo2.workers.dev: verified` になっていること。
+- 1.0.x（旧住所を読み込む版）は、旧住所の転送ページが「アプリの更新が必要です」と案内する。
 
 ## ビルド
 

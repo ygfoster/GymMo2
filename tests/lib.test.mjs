@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import * as D from '../js/lib/dates.js';
-import * as P from '../js/lib/parse.js';
-import * as M from '../js/lib/metrics.js';
+import * as D from '../web/js/lib/dates.js';
+import * as P from '../web/js/lib/parse.js';
+import * as M from '../web/js/lib/metrics.js';
 
 /* ---------- dates ---------- */
 test('parseSheetDate: シート由来の各種表記を YYYY-MM-DD に揃える', () => {
@@ -233,7 +233,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 test('sw.js のプリキャッシュに js/css の全ファイルが含まれる', () => {
-  const root = new URL('..', import.meta.url).pathname;
+  const root = new URL('../web/', import.meta.url).pathname;
   const sw = readFileSync(join(root, 'sw.js'), 'utf8');
   const walk = (dir) => readdirSync(dir).flatMap((f) => {
     const p = join(dir, f);
@@ -245,7 +245,7 @@ test('sw.js のプリキャッシュに js/css の全ファイルが含まれる
 });
 
 /* ---------- html テンプレート ---------- */
-import { html, toString as htmlToString } from '../js/lib/html.js';
+import { html, toString as htmlToString } from '../web/js/lib/html.js';
 
 test('html``: 値は自動エスケープされ、真偽値は属性用に true/false になる', () => {
   const evil = '<img src=x onerror=alert(1)>"\'&';

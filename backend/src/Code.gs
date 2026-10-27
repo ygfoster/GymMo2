@@ -17,6 +17,12 @@
  * bootstrap のたびに、種目名の末尾「ロー」を「ロウ」に統一する（シートを直接編集した場合も自動でそろう）。
  */
 
+/**
+ * 移転先（Cloudflare 版）。空でなければ「移転モード」: 書き込み・ヘルス取得・毎時の転記を止め、読み取り（bootstrap）だけ残す。
+ * 2026-10 に Cloudflare（Workers + D1）へ移行した。データの本体は D1 になり、このシートには Cloudflare から自動でコピーされる。
+ */
+var MOVED_TO = 'https://gymmo2.gymmo2.workers.dev/';
+
 var SHEET_HEALTH = 'Health Data';
 var SHEET_TRAINING = 'Workout Data';
 
@@ -38,6 +44,9 @@ function doPost(e) {
   if (!body || !safeEquals_(body.token, CONFIG.API_TOKEN)) {
     Utilities.sleep(400); // 総当たりを少し遅くする
     return json_({ ok: false, code: 'AUTH', error: 'パスコードが違います' });
+  }
+  if (MOVED_TO && body.action !== 'ping' && body.action !== 'bootstrap') {
+    return json_({ ok: false, code: 'MOVED', error: 'GymMo2 は新しい住所に移りました: ' + MOVED_TO });
   }
   try {
     switch (body.action) {
@@ -158,7 +167,7 @@ function upsertHealthRow_(ss, slashKey, rec) {
 function handleBootstrap_() {
   var ss = spreadsheet_();
   try {
-    normalizeExerciseColumn_(ss);
+    if (!MOVED_TO) normalizeExerciseColumn_(ss); // 移転後はシートに書き込まない
   } catch (err) {
     console.warn('種目名の統一に失敗しました', err); // 読み込み自体は止めない
   }

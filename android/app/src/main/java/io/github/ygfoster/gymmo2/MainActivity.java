@@ -38,7 +38,9 @@ import java.lang.ref.WeakReference;
 public class MainActivity extends Activity {
     static final String EXTRA_ROUTE = "route";
     private static final String TAG = "GymMo2";
-    private static final String APP_HOST = "ygfoster.github.io";
+    /** アプリの住所（Cloudflare）。旧住所（GitHub Pages）は新しい住所へ転送するページなので、アプリ内で開いて転送させる */
+    private static final String APP_HOST = Uri.parse(BuildConfig.START_URL).getHost();
+    private static final String LEGACY_HOST = "ygfoster.github.io";
     private static final int REQ_NOTIFICATIONS = 4001;
 
     private static volatile boolean foreground = false;
@@ -157,6 +159,7 @@ public class MainActivity extends Activity {
         String host = u.getHost();
         if (host == null) return false;
         if (host.equals(APP_HOST)) return true;
+        if (host.equals(LEGACY_HOST) && u.getPath() != null && u.getPath().startsWith("/GymMo2")) return true;
         // debug ビルドでは、エミュレーターから見た Mac の開発サーバーも許可
         return (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0 && host.equals("10.0.2.2");
     }

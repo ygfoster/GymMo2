@@ -26,7 +26,7 @@ export function showWelcome({ shell, onDone, notice = '' }) {
       <h1 class="t-large rise" style="--i:1">GymMo</h1>
       <p class="welcome-sub rise" style="--i:2">ワークアウトとコンディションを、<br>ひとつに。</p>
       <div class="welcome-feats">
-        <div class="feat rise" style="--i:3"><span class="feat-i" style="--c:var(--c-move)">${icons.tabToday}</span><div><div class="feat-t">リングでひと目</div><div class="feat-s">カロリー収支・タンパク質・睡眠を、その日のサマリーに。</div></div></div>
+        <div class="feat rise" style="--i:3"><span class="feat-i" style="--c:var(--c-move)">${icons.tabToday}</span><div><div class="feat-t">今日の調子をひと目で</div><div class="feat-s">カロリー収支・タンパク質・睡眠を、目標線つきの棒で。</div></div></div>
         <div class="feat rise" style="--i:4"><span class="feat-i" style="--c:var(--c-timer)">${icons.stopwatch}</span><div><div class="feat-t">休憩タイマーが寄り添う</div><div class="feat-s">セット完了で自動スタート。かけ忘れを防ぎます。</div></div></div>
         <div class="feat rise" style="--i:5"><span class="feat-i" style="--c:var(--c-gold-2)">${icons.trophy}</span><div><div class="feat-t">自己ベストを見逃さない</div><div class="feat-s">前回の記録を呼び出し、更新を自動で検出します。</div></div></div>
       </div>

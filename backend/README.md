@@ -1,3 +1,7 @@
+> **2026-10 に Cloudflare（Workers + D1）へ移行しました。** このディレクトリは旧バックエンドの記録として残しています。
+> 今は「移転モード」（`Code.gs` の `MOVED_TO`）で、書き込み・ヘルス取得・毎時の転記を止め、読み取り（bootstrap）だけ応答します。
+> 新しいバックエンドは `worker/`、設定は `wrangler.jsonc`。シートには Cloudflare から自動でコピーされます。
+
 # GymMo2 バックエンド（Apps Script）
 
 GymMo2 専用の Apps Script ウェブアプリです。Google スプレッドシート（ワークアウトとヘルスデータ）の読み書きと、Google ヘルス API からの定期同期を担います。

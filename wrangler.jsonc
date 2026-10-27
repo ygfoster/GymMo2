@@ -1,0 +1,29 @@
+{
+  // GymMo2: 画面（web/）と API（worker/）を 1 つの Worker で配信する
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gymmo2",
+  "main": "worker/src/index.js",
+  "compatibility_date": "2026-10-23",
+  "assets": {
+    "directory": "./web",
+    "binding": "ASSETS",
+    // API・OAuth の戻り先・App Links の確認ファイルだけ Worker が先に受け取り、ほかは静的ファイルをそのまま返す
+    "run_worker_first": ["/api", "/oauth/*", "/.well-known/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gymmo2",
+      "database_id": "1485f9e9-7afa-4814-89f9-2872534b1fb8",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // 毎時 7 分: 直近 7 日分のヘルスを取得してシートへ反映
+  "triggers": { "crons": ["7 * * * *"] },
+  "vars": {
+    // 自動コピー先のスプレッドシート（複製した「fitbitデータ_GymMo2」）。元の GymMo のシートではない
+    "SPREADSHEET_ID": "1IE1kgqMCzOwsD1R789JJIuy5uGWYOePUc984tWusEvc"
+  },
+  // 秘密情報（API_TOKEN / GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET）は `wrangler secret put` で登録し、ここには書かない
+  "observability": { "enabled": true }
+}
