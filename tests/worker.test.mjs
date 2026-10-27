@@ -1,4 +1,4 @@
-// Cloudflare Worker 側の純粋関数（worker/src/lib.js）のテスト。旧バックエンド（Lib.gs）と同じ規則であることも確かめる
+// Cloudflare Worker 側の純粋関数（worker/src/lib.js）のテスト。シートの書式・元の GymMo と同じ判定規則であることも確かめる
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as W from '../worker/src/lib.js';

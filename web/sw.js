@@ -1,7 +1,7 @@
 // GymMo2 Service Worker
 // - アプリ本体: ネットワーク優先（常に最新）、オフラインや低速時はキャッシュから即起動
 // - フォント: stale-while-revalidate
-// - API（Apps Script）: キャッシュしない（常に素通し）
+// - API（/api、Cloudflare Worker）: キャッシュしない（常に素通し）
 const VERSION = 'v1.4.0';
 const SHELL_CACHE = `gymmo2-shell-${VERSION}`;
 const FONT_CACHE = 'gymmo2-fonts-v1';

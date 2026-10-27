@@ -48,7 +48,6 @@ worker/src/          API（Cloudflare Worker）: index.js（ルーティング�
 migrations/          D1 の表定義
 wrangler.jsonc       Worker の設定（D1・Cron・静的ファイル）
 android/             Android アプリ（WebView + ネイティブの休憩タイマー通知）
-backend/             旧バックエンド（Apps Script）。2026-10 に移行済みで、今は「移転モード」（書き込み停止）
 index.html sw.js     旧住所（GitHub Pages）からの転送ページと、古いサービスワーカーの片付け
 tests/  node --test   docs/  DESIGN.md（設計判断・元アプリとの比較）
 ```

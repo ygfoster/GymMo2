@@ -1,8 +1,0 @@
-{
-  "name": "gymmo2-backend",
-  "private": true,
-  "description": "GymMo2 Apps Script backend (clasp)",
-  "devDependencies": {
-    "@google/clasp": "^3.4.1"
-  }
-}

@@ -64,7 +64,7 @@
 - **データ形式は元アプリと互換**（`1セット目: 50kg × 11回`）。シートは両アプリから読めるが、**GymMo2 は自分専用の複製シート**に書く。
 - **ホスティング（v1.4〜）**: Cloudflare Workers 1 つで、画面（静的ファイル）と API（`/api`）を同じ住所から配信。データの本体は D1（SQLite）で、変更のたびに Google スプレッドシートへ一方向で自動コピー（シートでの閲覧はそのまま）。Google ヘルスは Cron で毎時取得。
   - Apps Script＋GitHub Pages からの移行理由: API の応答が 1〜3 秒（初回 5 秒超）→ 数十 ms、反映待ちの解消（push 後すぐ）、他アプリと共有していた住所（ygfoster.github.io）からの独立、ロールバックの容易さ。
-- **テスト**: ロジック層・Worker の純粋関数ほか 51 件。`scripts/offline-check.mjs` で Service Worker のオフライン起動を実ブラウザ（ヘッドレス Chrome）で検証。
+- **テスト**: ロジック層・Worker の純粋関数ほか 39 件。`scripts/offline-check.mjs` で Service Worker のオフライン起動を実ブラウザ（ヘッドレス Chrome）で検証。
 
 ## 既知の制約
 

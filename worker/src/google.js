@@ -1,5 +1,5 @@
 // Google との連携: OAuth（初回の許可とトークン更新）・Google ヘルス API v4 の取得・スプレッドシートへのコピー。
-// 取得ロジックは旧バックエンド（backend/src/Health.gs）と同じ API・同じ解釈（睡眠・消費カロリー・栄養ログ）。
+// 取得ロジックは元の GymMo と同じ API・同じ解釈（睡眠・消費カロリー・栄養ログ）。
 import { civilDayRange, nextIsoDate, minutesToSleepText, healthSheetValues } from './lib.js';
 import { getMeta, setMeta, deleteMeta } from './db.js';
 

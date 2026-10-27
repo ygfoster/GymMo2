@@ -7,7 +7,6 @@
   python3 scripts/api-check.py read              ping → status → bootstrap → 今日のヘルスデータ
   python3 scripts/api-check.py roundtrip         2000/01/01 のテスト行を書いて、読み戻して、削除
   python3 scripts/api-check.py rename-noop       存在しない部位名の改名（0 件）で renameValues を確認
-  python3 scripts/api-check.py dump-legacy <path> 旧バックエンド（Apps Script）の bootstrap を保存（移行用）
 """
 import json
 import os
@@ -16,14 +15,13 @@ import sys
 import urllib.error
 import urllib.request
 
-LEGACY_URL = 'https://script.google.com/macros/s/AKfycbwlBmyw_PEmDL4U9H1MRi1IZLGhiN91pBDvmFf_7GDjpk-ZOGZ20uRXVofzH7U2NXelwg/exec'
-URL = os.environ.get('GYMMO2_API_URL') or (open('.secrets/api-url.txt').read().strip() if os.path.exists('.secrets/api-url.txt') else LEGACY_URL)
+URL = os.environ.get('GYMMO2_API_URL') or (open('.secrets/api-url.txt').read().strip() if os.path.exists('.secrets/api-url.txt') else 'https://gymmo2.gymmo2.workers.dev/api')
 TOKEN = open('.secrets/passcode.txt').read().strip()
 
 
 def call(action, **payload):
     body = json.dumps({'action': action, 'token': TOKEN, **payload}).encode()
-    # -X のような強制はせず、ブラウザと同じ「302 で GET に切り替わる」挙動で呼ぶ
+    # Cloudflare は Python 既定の User-Agent を自動アクセスとして弾く（エラー 1010）ので、名前を付けて呼ぶ
     req = urllib.request.Request(URL, data=body, headers={'Content-Type': 'text/plain;charset=utf-8', 'User-Agent': 'GymMo2-api-check/1.0'})
     try:
         with urllib.request.urlopen(req, timeout=120) as r:
@@ -46,8 +44,7 @@ def read():
     show('ping', r)
     if not r.get('ok'):
         return 1
-    if URL != LEGACY_URL:
-        show('status', call('status'))
+    show('status', call('status'))
     r = call('bootstrap')
     if not r.get('ok'):
         show('bootstrap', r)
@@ -111,9 +108,6 @@ def rename_noop():
 if __name__ == '__main__':
     cmd = sys.argv[1] if len(sys.argv) > 1 else 'read'
     if cmd == 'dump':
-        sys.exit(dump(sys.argv[2]))
-    if cmd == 'dump-legacy':
-        URL = LEGACY_URL
         sys.exit(dump(sys.argv[2]))
     if cmd == 'rename-noop':
         sys.exit(rename_noop())
