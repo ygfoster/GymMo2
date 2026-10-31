@@ -111,4 +111,8 @@ if __name__ == '__main__':
         sys.exit(dump(sys.argv[2]))
     if cmd == 'rename-noop':
         sys.exit(rename_noop())
+    if cmd == 'health':  # health 2026-10-30 → その日のヘルスを Google から取り直して保存
+        h = call('health', date=sys.argv[2])
+        show(f'health({sys.argv[2]})', h)
+        sys.exit(0 if h.get('ok') and h.get('row') and not h.get('error') else 1)
     sys.exit(read() if cmd == 'read' else roundtrip())

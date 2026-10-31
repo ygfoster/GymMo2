@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as W from '../worker/src/lib.js';
+import { refreshTokenParams, SCOPES, SCOPES_BY_KIND } from '../worker/src/google.js';
 
 test('normalizeDateKey / jstKey: 各種表記を yyyy/MM/dd に、Date は日本時間で', () => {
   assert.equal(W.normalizeDateKey('2026-10-08'), '2026/10/08');
@@ -55,4 +56,17 @@ test('safeEquals: 一致・不一致・型の揺れ', () => {
   assert.equal(W.safeEquals('abc', 'abd'), false);
   assert.equal(W.safeEquals('abc', 'abcd'), false);
   assert.equal(W.safeEquals(undefined, ''), true);
+});
+
+test('Google のアクセストークンは用途ごとにスコープを絞る（ヘルス API はシートのスコープが混ざると 403 DISALLOWED_OAUTH_SCOPES）', () => {
+  const env = { GOOGLE_CLIENT_ID: 'id', GOOGLE_CLIENT_SECRET: 'secret' };
+  const h = refreshTokenParams(env, 'rt', 'health');
+  assert.equal(h.grant_type, 'refresh_token');
+  assert.equal(h.refresh_token, 'rt');
+  assert.deepEqual(h.scope.split(' '), SCOPES_BY_KIND.health);
+  assert.ok(!h.scope.includes('spreadsheets'));
+  assert.equal(refreshTokenParams(env, 'rt', 'sheets').scope, 'https://www.googleapis.com/auth/spreadsheets');
+  assert.throws(() => refreshTokenParams(env, 'rt', 'other'));
+  // 許可画面では全スコープを一度にもらう
+  assert.deepEqual(SCOPES, [...SCOPES_BY_KIND.health, ...SCOPES_BY_KIND.sheets]);
 });

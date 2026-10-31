@@ -157,36 +157,40 @@ async function handleHealth(env, ctx, dateIso) {
     return { ok: true, row: saved, source: 'db' };
   }
   let api;
+  let error = null;
   try {
-    api = (await fetchHealthForDates(env, [dateIso]))[dateIso];
+    ({ rows: { [dateIso]: api }, error } = await fetchHealthForDates(env, [dateIso]));
   } catch (e) {
     if (e instanceof GoogleAuthError) return { ok: true, row: saved || null, authWarning: e.message, source: 'db' };
     throw e;
   }
+  const extra = error ? { error } : {};
   const merged = mergeHealthRecords(saved, api);
-  if (!hasAnyValidHealthMetric(merged)) return { ok: true, row: null, source: 'api' };
+  if (!hasAnyValidHealthMetric(merged)) return { ok: true, row: null, source: 'api', ...extra };
   const row = toSheetRow(key, merged);
   if (hasAnyValidHealthMetric(api)) {
     await db.upsertHealthStmt(env, row).run();
     ctx.waitUntil(mirror(env));
   }
-  return { ok: true, row, source: 'api' };
+  return { ok: true, row, source: 'api', ...extra };
 }
 
 /** 直近 n 日分を Google ヘルスから取得し、意味のある値がある日だけ保存する */
 async function syncRecentHealth(env, n) {
   const dates = recentIsoDates(n);
-  const results = await fetchHealthForDates(env, dates);
+  const { rows, error } = await fetchHealthForDates(env, dates);
   const stmts = [];
   for (const iso of dates) {
-    const api = results[iso];
+    const api = rows[iso];
     if (!hasAnyValidHealthMetric(api)) continue;
     const key = normalizeDateKey(iso);
     const saved = await db.getHealth(env, key);
     stmts.push(db.upsertHealthStmt(env, toSheetRow(key, mergeHealthRecords(saved, api))));
   }
   if (stmts.length) await env.DB.batch(stmts);
-  await db.setMeta(env, 'health_synced_at', Date.now());
+  // 取得に失敗した回は「同期できた時刻」を進めない（止まっていることが status で分かるように）
+  if (!error) await db.setMeta(env, 'health_synced_at', Date.now());
+  else console.error('health sync partial failure', error);
   return stmts.length;
 }
 
@@ -204,12 +208,12 @@ async function mirror(env) {
 }
 
 async function status(env) {
-  const [refresh, authError, sheetError, mirroredAt, healthAt, scopes] = await Promise.all(
-    ['google_refresh_token', 'google_auth_error', 'sheet_error', 'sheet_mirrored_at', 'health_synced_at', 'google_scopes'].map((k) => db.getMeta(env, k))
+  const [refresh, authError, sheetError, mirroredAt, healthAt, healthError, scopes] = await Promise.all(
+    ['google_refresh_token', 'google_auth_error', 'sheet_error', 'sheet_mirrored_at', 'health_synced_at', 'health_error', 'google_scopes'].map((k) => db.getMeta(env, k))
   );
   return {
     google: { connected: !!refresh && !authError, error: authError || null, scopes: scopes || '' },
     sheet: { mirroredAt: mirroredAt ? Number(mirroredAt) : null, error: sheetError || null },
-    health: { syncedAt: healthAt ? Number(healthAt) : null },
+    health: { syncedAt: healthAt ? Number(healthAt) : null, error: healthError || null },
   };
 }
